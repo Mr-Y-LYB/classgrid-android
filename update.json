@@ -1,12 +1,12 @@
 {
-  "tag_name": "v1.2.1",
-  "body": "## v1.2.1\n\n- 点击更新后立即显示下载状态。\n- 下载失败时在弹窗内保留原因与重试按钮；重新进入应用可再次收到更新提示。\n- 增加“在浏览器下载 APK”入口，用于应用内下载受网络环境影响时安装。\n\nAPK SHA-256：`ee5a1b5ec539cd98177779f46b8d824429bdd63c4ebb380b39afca3fa762e964`\n",
+  "tag_name": "v1.2.2",
+  "body": "## v1.2.2\n\n- 修复导入 JPG 后课表背景可能不显示：图片分段传入界面，并作为课表图片层呈现。\n- JPG 自动缩小和压缩，按课表区域比例显示。\n- “节次时间”改为逐节编辑，窄屏下保留底部操作按钮。\n- 校正底部“设置”图标。\n\nAPK SHA-256：`e6593afd2a5ad49969c26a065a5ff760632dfbf23ca31572ec85d97c58339069`\n",
   "assets": [
     {
-      "name": "ClassGrid-v1.2.1.apk",
-      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v1.2.1/ClassGrid-v1.2.1.apk",
-      "digest": "sha256:ee5a1b5ec539cd98177779f46b8d824429bdd63c4ebb380b39afca3fa762e964",
-      "size": 1025533
+      "name": "ClassGrid-v1.2.2.apk",
+      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v1.2.2/ClassGrid-v1.2.2.apk",
+      "digest": "sha256:e6593afd2a5ad49969c26a065a5ff760632dfbf23ca31572ec85d97c58339069",
+      "size": 1027505
     }
   ]
 }

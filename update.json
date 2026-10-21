@@ -1,12 +1,12 @@
 {
-  "tag_name": "v1.2.0",
-  "body": "## v1.2.0\n\n- 更新提示按版本和改动逐条显示。\n- 首页导航区分“添加课程”与“导入课表”，课表管理入口移至首页。\n- 每张课表可设置独立的 JPG 背景；背景随 JSON 备份迁移。\n- 优化按钮反馈和弹层动画的衔接。\n\nAPK SHA-256：`e3822bb02f097d292dbeb7fc1236100c67938831f36cba00f44e2aabd5757eed`\n",
+  "tag_name": "v1.2.1",
+  "body": "## v1.2.1\n\n- 点击更新后立即显示下载状态。\n- 下载失败时在弹窗内保留原因与重试按钮；重新进入应用可再次收到更新提示。\n- 增加“在浏览器下载 APK”入口，用于应用内下载受网络环境影响时安装。\n\nAPK SHA-256：`ee5a1b5ec539cd98177779f46b8d824429bdd63c4ebb380b39afca3fa762e964`\n",
   "assets": [
     {
-      "name": "ClassGrid-v1.2.0.apk",
-      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v1.2.0/ClassGrid-v1.2.0.apk",
-      "digest": "sha256:e3822bb02f097d292dbeb7fc1236100c67938831f36cba00f44e2aabd5757eed",
-      "size": 1024597
+      "name": "ClassGrid-v1.2.1.apk",
+      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v1.2.1/ClassGrid-v1.2.1.apk",
+      "digest": "sha256:ee5a1b5ec539cd98177779f46b8d824429bdd63c4ebb380b39afca3fa762e964",
+      "size": 1025533
     }
   ]
 }

@@ -1,0 +1,42 @@
+plugins { id 'com.android.application' }
+
+def signingFile = file('../.signing/signing.properties')
+def signing = new Properties()
+if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+
+android {
+    namespace 'com.mrylyb.classgrid'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.mrylyb.classgrid'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+    }
+    signingConfigs {
+        if (signingFile.exists()) {
+            release {
+                storeFile file('../.signing/classgrid.jks')
+                storePassword signing.getProperty('password')
+                keyAlias 'classgrid'
+                keyPassword signing.getProperty('password')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (signingFile.exists()) signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.9.0'
+}
+

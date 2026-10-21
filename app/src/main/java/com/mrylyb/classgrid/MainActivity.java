@@ -1,0 +1,241 @@
+package com.mrylyb.classgrid;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class MainActivity extends Activity {
+    private static final int PICK_IMPORT = 101;
+    private static final int CREATE_EXPORT = 102;
+    private static final int PORTAL = 103;
+    private static final int NOTIFICATION_PERMISSION = 104;
+    private static final int MAX_FILE_BYTES = 12 * 1024 * 1024;
+    private WebView web;
+    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private UpdateManager updater;
+    private String pendingExport;
+    private boolean pageReady;
+
+    @Override public void onCreate(Bundle state) {
+        super.onCreate(state);
+        getWindow().setStatusBarColor(Color.rgb(247, 249, 251));
+        getWindow().setNavigationBarColor(Color.rgb(247, 249, 251));
+        getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        updater = new UpdateManager(this, worker, this::callback);
+        web = new WebView(this);
+        web.getSettings().setJavaScriptEnabled(true);
+        web.getSettings().setDomStorageEnabled(true);
+        web.getSettings().setAllowFileAccess(true);
+        web.getSettings().setAllowFileAccessFromFileURLs(false);
+        web.getSettings().setAllowUniversalAccessFromFileURLs(false);
+        web.getSettings().setJavaScriptCanOpenWindowsAutomatically(false);
+        web.addJavascriptInterface(new Bridge(), "Native");
+        web.setWebViewClient(new WebViewClient() {
+            @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return !request.getUrl().toString().startsWith("file:///android_asset/");
+            }
+            @Override public void onPageFinished(WebView view, String url) {
+                pageReady = true;
+                updater.check(false);
+                callback("onReminderStatus", ReminderScheduler.status(MainActivity.this).toString());
+            }
+        });
+        setContentView(web);
+        web.loadUrl("file:///android_asset/index.html");
+    }
+
+    private File stateFile() { return new File(getFilesDir(), "classgrid.json"); }
+
+    private void callback(String name, String argument) {
+        runOnUiThread(() -> {
+            if (web != null && pageReady) web.evaluateJavascript("window." + name + "(" + argument + ")", null);
+        });
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (updater != null) {
+            updater.resumePendingInstall();
+            if (pageReady) updater.check(false);
+        }
+        worker.execute(() -> ReminderScheduler.schedule(this));
+        if (pageReady) callback("onReminderStatus", ReminderScheduler.status(this).toString());
+    }
+
+    @Override protected void onDestroy() {
+        worker.shutdown();
+        if (web != null) web.destroy();
+        super.onDestroy();
+    }
+
+    public class Bridge {
+        @JavascriptInterface public String loadState() {
+            try { return new String(java.nio.file.Files.readAllBytes(stateFile().toPath()), StandardCharsets.UTF_8); }
+            catch (Exception e) { return ""; }
+        }
+        @JavascriptInterface public boolean saveState(String json) {
+            if (json == null || json.length() > 4_000_000) return false;
+            try {
+                new JSONObject(json);
+                File temp = new File(getFilesDir(), "classgrid.tmp");
+                try (FileOutputStream out = new FileOutputStream(temp)) {
+                    out.write(json.getBytes(StandardCharsets.UTF_8));
+                    out.getFD().sync();
+                }
+                if (!temp.renameTo(stateFile())) {
+                    try (FileOutputStream out = new FileOutputStream(stateFile())) {
+                        out.write(json.getBytes(StandardCharsets.UTF_8));
+                        out.getFD().sync();
+                    }
+                    temp.delete();
+                }
+                return true;
+            } catch (Exception e) { return false; }
+        }
+        @JavascriptInterface public void pickImport() {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("*/*");
+                i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"text/csv", "text/plain", "application/json",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream"});
+                startActivityForResult(i, PICK_IMPORT);
+            });
+        }
+        @JavascriptInterface public void exportFile(String filename, String mime, String content) {
+            if (filename == null || content == null || content.length() > 5_000_000) return;
+            runOnUiThread(() -> {
+                pendingExport = content;
+                Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType(mime == null || mime.isEmpty() ? "application/octet-stream" : mime);
+                i.putExtra(Intent.EXTRA_TITLE, filename);
+                startActivityForResult(i, CREATE_EXPORT);
+            });
+        }
+        @JavascriptInterface public void openPortal(String url) {
+            runOnUiThread(() -> {
+                String safe = "https://jws.syuct.edu.cn/";
+                try {
+                    Uri u = Uri.parse(url);
+                    if ("https".equalsIgnoreCase(u.getScheme()) && u.getHost() != null
+                        && u.getUserInfo() == null)
+                        safe = u.toString();
+                } catch (Exception ignored) {}
+                Intent i = new Intent(MainActivity.this, PortalActivity.class);
+                i.putExtra("url", safe);
+                startActivityForResult(i, PORTAL);
+            });
+        }
+        @JavascriptInterface public void syncReminders(String eventsJson) {
+            if (eventsJson == null || eventsJson.length() > 2_000_000) return;
+            worker.execute(() -> {
+                ReminderScheduler.saveAndSchedule(MainActivity.this, eventsJson);
+                callback("onReminderStatus", ReminderScheduler.status(MainActivity.this).toString());
+            });
+        }
+        @JavascriptInterface public void requestReminderPermission() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED)
+                    requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION);
+                else callback("onReminderStatus", ReminderScheduler.status(MainActivity.this).toString());
+            });
+        }
+        @JavascriptInterface public void openExactAlarmSettings() {
+            if (Build.VERSION.SDK_INT >= 31) runOnUiThread(() -> {
+                Intent i = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            });
+        }
+        @JavascriptInterface public void checkForUpdates(boolean manual) { updater.check(manual); }
+        @JavascriptInterface public void downloadUpdate(String url, String digest, String version) {
+            updater.download(url, digest, version);
+        }
+    }
+
+    @Override protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (result != RESULT_OK || data == null) return;
+        if (request == PORTAL) {
+            String payload = data.getStringExtra("payload");
+            if (payload != null) callback("onPortalData", payload);
+            return;
+        }
+        Uri uri = data.getData();
+        if (uri == null) return;
+        if (request == CREATE_EXPORT) {
+            String content = pendingExport;
+            pendingExport = null;
+            if (content == null) return;
+            worker.execute(() -> {
+                boolean ok = false;
+                try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) {
+                    if (out != null) { out.write(content.getBytes(StandardCharsets.UTF_8)); ok = true; }
+                } catch (Exception ignored) {}
+                callback("onExportDone", ok ? "{\"ok\":true}" : "{\"ok\":false}");
+            });
+        } else if (request == PICK_IMPORT) {
+            worker.execute(() -> {
+                JSONObject resultObj = new JSONObject();
+                try {
+                    String name = "import";
+                    try (android.database.Cursor c = getContentResolver().query(uri,
+                        new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                        if (c != null && c.moveToFirst()) name = c.getString(0);
+                    }
+                    byte[] bytes = readLimited(uri);
+                    String text = name.toLowerCase().endsWith(".xlsx")
+                        ? XlsxReader.toCsv(bytes) : new String(bytes, StandardCharsets.UTF_8);
+                    resultObj.put("name", name);
+                    resultObj.put("text", text);
+                } catch (Exception e) {
+                    try { resultObj.put("error", e.getMessage() == null ? "无法读取文件" : e.getMessage()); }
+                    catch (Exception ignored) {}
+                }
+                callback("onFileImported", resultObj.toString());
+            });
+        }
+    }
+
+    private byte[] readLimited(Uri uri) throws Exception {
+        try (InputStream in = getContentResolver().openInputStream(uri);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            if (in == null) throw new IllegalStateException("无法打开文件");
+            byte[] buf = new byte[8192]; int count;
+            while ((count = in.read(buf)) != -1) {
+                if (out.size() + count > MAX_FILE_BYTES) throw new IllegalStateException("文件超过 12 MB");
+                out.write(buf, 0, count);
+            }
+            return out.toByteArray();
+        }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grants) {
+        super.onRequestPermissionsResult(requestCode, permissions, grants);
+        if (requestCode == NOTIFICATION_PERMISSION)
+            callback("onReminderStatus", ReminderScheduler.status(this).toString());
+    }
+}

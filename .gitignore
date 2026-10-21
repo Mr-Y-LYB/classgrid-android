@@ -7,4 +7,6 @@ dist/
 .signing/
 .edge-test*/
 *.iml
+references/ui-ux-pro-max-skill/
+references/react-bits/
 

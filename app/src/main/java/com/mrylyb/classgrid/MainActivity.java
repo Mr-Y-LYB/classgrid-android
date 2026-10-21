@@ -4,7 +4,11 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -12,6 +16,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
@@ -32,11 +37,13 @@ public class MainActivity extends Activity {
     private static final int CREATE_EXPORT = 102;
     private static final int PORTAL = 103;
     private static final int NOTIFICATION_PERMISSION = 104;
-    private static final int MAX_FILE_BYTES = 12 * 1024 * 1024;
+    private static final int PICK_BACKGROUND = 105;
+    private static final int MAX_FILE_BYTES = 20 * 1024 * 1024;
     private WebView web;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private UpdateManager updater;
     private String pendingExport;
+    private String pendingBackgroundTableId;
     private boolean pageReady;
     private boolean foreground;
     private boolean networkCallbackRegistered;
@@ -133,7 +140,7 @@ public class MainActivity extends Activity {
             catch (Exception e) { return ""; }
         }
         @JavascriptInterface public boolean saveState(String json) {
-            if (json == null || json.length() > 4_000_000) return false;
+            if (json == null || json.length() > 18_000_000) return false;
             try {
                 new JSONObject(json);
                 File temp = new File(getFilesDir(), "classgrid.tmp");
@@ -162,7 +169,7 @@ public class MainActivity extends Activity {
             });
         }
         @JavascriptInterface public void exportFile(String filename, String mime, String content) {
-            if (filename == null || content == null || content.length() > 5_000_000) return;
+            if (filename == null || content == null || content.length() > 20_000_000) return;
             runOnUiThread(() -> {
                 pendingExport = content;
                 Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
@@ -170,6 +177,16 @@ public class MainActivity extends Activity {
                 i.setType(mime == null || mime.isEmpty() ? "application/octet-stream" : mime);
                 i.putExtra(Intent.EXTRA_TITLE, filename);
                 startActivityForResult(i, CREATE_EXPORT);
+            });
+        }
+        @JavascriptInterface public void pickBackground(String tableId) {
+            if (tableId == null || !tableId.matches("[a-zA-Z0-9_-]{6,80}")) return;
+            runOnUiThread(() -> {
+                pendingBackgroundTableId = tableId;
+                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("image/jpeg");
+                startActivityForResult(i, PICK_BACKGROUND);
             });
         }
         @JavascriptInterface public void openPortal(String url) {
@@ -216,6 +233,25 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+        if (request == PICK_BACKGROUND) {
+            String tableId = pendingBackgroundTableId;
+            pendingBackgroundTableId = null;
+            if (result == RESULT_OK && data != null && data.getData() != null && tableId != null) {
+                Uri image = data.getData();
+                worker.execute(() -> {
+                    JSONObject response = new JSONObject();
+                    try {
+                        response.put("tableId", tableId);
+                        response.put("background", encodeBackground(image));
+                    } catch (Exception e) {
+                        try { response.put("error", e.getMessage() == null ? "无法读取 JPG 图片" : e.getMessage()); }
+                        catch (Exception ignored) {}
+                    }
+                    callback("onBackgroundPicked", response.toString());
+                });
+            }
+            return;
+        }
         if (result != RESULT_OK || data == null) return;
         if (request == PORTAL) {
             String payload = data.getStringExtra("payload");
@@ -264,11 +300,65 @@ public class MainActivity extends Activity {
             if (in == null) throw new IllegalStateException("无法打开文件");
             byte[] buf = new byte[8192]; int count;
             while ((count = in.read(buf)) != -1) {
-                if (out.size() + count > MAX_FILE_BYTES) throw new IllegalStateException("文件超过 12 MB");
+                if (out.size() + count > MAX_FILE_BYTES) throw new IllegalStateException("文件超过 20 MB");
                 out.write(buf, 0, count);
             }
             return out.toByteArray();
         }
+    }
+
+    private String encodeBackground(Uri uri) throws Exception {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) throw new IllegalStateException("无法打开图片");
+            BitmapFactory.decodeStream(in, null, options);
+        }
+        if (!"image/jpeg".equals(options.outMimeType) || options.outWidth < 1 || options.outHeight < 1
+            || options.outWidth > 12000 || options.outHeight > 12000)
+            throw new IllegalStateException("请选择 JPG 图片");
+        options.inJustDecodeBounds = false;
+        options.inSampleSize = 1;
+        while (Math.max(options.outWidth, options.outHeight) / options.inSampleSize > 1600)
+            options.inSampleSize *= 2;
+        Bitmap bitmap;
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) throw new IllegalStateException("无法打开图片");
+            bitmap = BitmapFactory.decodeStream(in, null, options);
+        }
+        if (bitmap == null) throw new IllegalStateException("无法读取 JPG 图片");
+        int orientation = ExifInterface.ORIENTATION_NORMAL;
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in != null) orientation = new ExifInterface(in).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+        } catch (Exception ignored) {}
+        int degrees = orientation == ExifInterface.ORIENTATION_ROTATE_90 ? 90
+            : orientation == ExifInterface.ORIENTATION_ROTATE_180 ? 180
+            : orientation == ExifInterface.ORIENTATION_ROTATE_270 ? 270 : 0;
+        if (degrees != 0) {
+            Matrix matrix = new Matrix();
+            matrix.postRotate(degrees);
+            Bitmap rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+            if (rotated != bitmap) bitmap.recycle();
+            bitmap = rotated;
+        }
+        byte[] jpeg = null;
+        for (int scale = 0; scale < 5; scale++) {
+            for (int quality = 82; quality >= 42; quality -= 10) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out);
+                jpeg = out.toByteArray();
+                if (jpeg.length <= 160_000) break;
+            }
+            if (jpeg != null && jpeg.length <= 160_000) break;
+            Bitmap smaller = Bitmap.createScaledBitmap(bitmap, Math.max(1, bitmap.getWidth() * 4 / 5),
+                Math.max(1, bitmap.getHeight() * 4 / 5), true);
+            if (smaller != bitmap) bitmap.recycle();
+            bitmap = smaller;
+        }
+        bitmap.recycle();
+        if (jpeg == null || jpeg.length > 160_000) throw new IllegalStateException("图片内容过于复杂，请换一张 JPG");
+        return "data:image/jpeg;base64," + Base64.encodeToString(jpeg, Base64.NO_WRAP);
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grants) {

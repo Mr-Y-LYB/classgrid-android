@@ -36,6 +36,15 @@ const state={schema:1,activeId:t.id,tables:[t],settings:{remindersEnabled:true,r
 const restored=M.validateState(JSON.parse(JSON.stringify(state)));
 assert.equal(restored.tables.length,1);
 assert.equal(M.changeMarkers(restored.tables[0],3)[0].targetDate,'2026-10-06');
+const withBackground=JSON.parse(JSON.stringify(state));
+withBackground.tables[0].background='data:image/jpeg;base64,/9j/2Q==';
+withBackground.tables[0].backgroundFade=45;
+assert.equal(M.validateState(JSON.parse(JSON.stringify(withBackground))).tables[0].backgroundFade,45);
+const legacy=JSON.parse(JSON.stringify(state));
+delete legacy.tables[0].background;delete legacy.tables[0].backgroundFade;
+assert.equal(M.validateState(legacy).tables[0].background,undefined);
+withBackground.tables[0].background='data:image/png;base64,AA==';
+assert.throws(()=>M.validateState(withBackground),/背景无效/);
 const ics=M.toIcs(t);
 assert.match(ics,/BEGIN:VCALENDAR/);
 assert.match(ics,/SUMMARY:电力系统分析基础/);

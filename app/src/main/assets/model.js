@@ -10,7 +10,7 @@
   function dateAdd(date,days){const d=new Date(`${date}T12:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
   function weekOf(table,date){return Math.floor((new Date(`${date}T12:00:00`)-new Date(`${table.startDate}T12:00:00`))/604800000)+1;}
   function dateFor(table,week,day){return dateAdd(table.startDate,(week-1)*7+day-1);}
-  function defaultTable(){return {id:uid(),name:'我的课表',startDate:monday(todayDate()),totalWeeks:20,periods:DEFAULT_PERIODS.map(x=>({start:x[0],end:x[1]})),courses:[],exceptions:[]};}
+  function defaultTable(){return {id:uid(),name:'我的课表',startDate:monday(todayDate()),totalWeeks:20,periods:DEFAULT_PERIODS.map(x=>({start:x[0],end:x[1]})),courses:[],exceptions:[],background:'',backgroundFade:58};}
   function defaultState(){const table=defaultTable();return {schema:SCHEMA,activeId:table.id,tables:[table],settings:{remindersEnabled:false,reminderMinutes:15}};}
   function parseWeeks(input,maxWeeks=30){
     const result=new Set();let source=String(input||'').trim();
@@ -40,6 +40,10 @@
          !Number.isInteger(t.totalWeeks)||t.totalWeeks<1||t.totalWeeks>30||
          !Array.isArray(t.periods)||t.periods.length<1||t.periods.length>20||
          !Array.isArray(t.courses)||t.courses.length>1000||!Array.isArray(t.exceptions)||t.exceptions.length>2000)throw Error('课表数据无效');
+      if(t.background!==undefined&&t.background!==''&&
+         (typeof t.background!=='string'||t.background.length>220000||
+          !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(t.background)))throw Error('课表背景无效');
+      if(t.backgroundFade!==undefined&&(!Number.isInteger(t.backgroundFade)||t.backgroundFade<0||t.backgroundFade>85))throw Error('背景透明度无效');
       for(const p of t.periods)if(!/^\d\d:\d\d$/.test(p.start)||!/^\d\d:\d\d$/.test(p.end)||p.start>=p.end)throw Error('节次时间无效');
       for(const c of t.courses){
         if(!c||!c.id||!c.name||!Array.isArray(c.sessions)||c.sessions.length>30)throw Error('课程数据无效');

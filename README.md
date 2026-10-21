@@ -4,11 +4,11 @@
 
 ## 使用
 
-1. 新建或打开课表，设置第一周周一和总周数。
-2. 点击“添加”录入课程；一门课可设置多个星期、节次和周次。
+1. 在“课表”首页点击“切换／新建”管理课表，设置第一周周一和总周数。每张课表可单独选择 JPG 背景并调节淡化程度。
+2. 点击“添加课程”手动录入；一门课可设置多个星期、节次和周次。“导入课表”用于教务网页或文件数据。
 3. 点击课程可编辑整门课，或只调整、取消这一次上课；原时段会保留可点击的调课或停课提示。
 4. “导入”支持 CSV、XLSX 模板及网页课表。沈阳化工大学本科生可在应用内登录 `https://jws.syuct.edu.cn/`，进入“学生个人课表”后点击“提取”。所有导入均先预览，再选择新建、追加或替换。
-5. “设置”中可修改节次时间、开启本地提醒、导出 JSON 备份或 ICS 日历。
+5. “设置”中可修改节次时间、开启本地提醒、导出 JSON 备份或 ICS 日历。JSON 备份包含各课表的背景图片。
 
 教务登录表单由学校网页提供；应用不保存账号、密码或 Cookie。退出教务页面后清除网页 Cookie。学校页面若发生变更，可使用文件或手动导入。沈化页面解析已按公开格式和脱敏结构样本测试，尚需在学校系统恢复登录后进行真人实测。
 
@@ -30,6 +30,8 @@ node .\tests\core.test.js
 ## 设计参考
 
 周视图的信息排布参考用户提供的 WakeUp 课程表分析。中性色画布、浅色分隔线、圆角控件与紧凑间距参考 [VoltAgent/awesome-design-md 中的 Cal.com 分析](https://github.com/VoltAgent/awesome-design-md/tree/main/design-md/cal)。界面与图标均为 ClassGrid 自行实现。
+
+交互细节还参考了 [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) 和 [React Bits](https://github.com/DavidHDev/react-bits) 的移动端与轻量动效示例。参考仓库保存在本机 `references` 目录，不作为应用依赖。
 
 ## 数据与更新
 

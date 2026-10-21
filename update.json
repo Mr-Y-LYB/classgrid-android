@@ -1,12 +1,1 @@
-{
-  "tag_name": "v1.2.2",
-  "body": "## v1.2.2\n\n- 修复导入 JPG 后课表背景可能不显示：图片分段传入界面，并作为课表图片层呈现。\n- JPG 自动缩小和压缩，按课表区域比例显示。\n- “节次时间”改为逐节编辑，窄屏下保留底部操作按钮。\n- 校正底部“设置”图标。\n\nAPK SHA-256：`e6593afd2a5ad49969c26a065a5ff760632dfbf23ca31572ec85d97c58339069`\n",
-  "assets": [
-    {
-      "name": "ClassGrid-v1.2.2.apk",
-      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v1.2.2/ClassGrid-v1.2.2.apk",
-      "digest": "sha256:e6593afd2a5ad49969c26a065a5ff760632dfbf23ca31572ec85d97c58339069",
-      "size": 1027505
-    }
-  ]
-}
+{"assets":[{"browser_download_url":"https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v1.2.3/ClassGrid-v1.2.3.apk","digest":"sha256:b2065c2830e3a73e47b80fe2dfbf5cdbd1929473e8a4a29ffb00aa9bdcdb0bff","name":"ClassGrid-v1.2.3.apk","size":1028865}],"body":"## v1.2.3\n\n- APK 下载增加 GitHub 原始文件与 CDN 备用地址，连接超时或文件校验失败时自动切换。\n- 更新窗口显示下载进度，调整列表进入动效。\n- 精简 README。\n\nAPK SHA-256：b2065c2830e3a73e47b80fe2dfbf5cdbd1929473e8a4a29ffb00aa9bdcdb0bff\r\n","tag_name":"v1.2.3"}

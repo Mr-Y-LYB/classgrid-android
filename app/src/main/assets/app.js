@@ -8,7 +8,7 @@
     home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
     add:'<path d="M12 4v16M4 12h16"/>',
     import:'<path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/>',
-    settings:'<path d="M10 2h4l.7 2.5 2 .9 2.3-1.2 2.8 2.8-1.2 2.3.9 2L24 12v4l-2.5.7-.9 2 1.2 2.3-2.8 2.8-2.3-1.2-2 .9L14 26h-4l-.7-2.5-2-.9-2.3 1.2-2.8-2.8 1.2-2.3-.9-2L0 16v-4l2.5-.7.9-2-1.2-2.3L5 4.2l2.3 1.2 2-.9L10 2Z" transform="translate(2 2) scale(.75)"/><circle cx="12" cy="12" r="2.5"/>'
+    settings:'<path d="M4 7h8m4 0h4M4 17h4m4 0h8"/><circle cx="14" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'
   };
   const navIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -53,7 +53,7 @@
           <button class="iconbtn" data-action="next" aria-label="下一周">›</button>
           <button class="todaybtn" data-action="today">本周</button></div></div>
       <div class="weekday-row"><div></div>${days.map((d,i)=>`<div class="day ${dates[i]===today?'today':''}"><b>周${d}</b><span>${dateLabel(dates[i])}</span></div>`).join('')}</div>
-      <div class="grid-scroll"><div class="timetable" id="timetable">${table.periods.map((p,n)=>
+      <div class="grid-scroll"><div class="timetable" id="timetable"><img class="timetable-background" id="table-background" alt="" hidden><div class="timetable-background-veil" id="table-background-veil" hidden></div>${table.periods.map((p,n)=>
         `<div class="period-label" style="height:72px;grid-row:${n+1};grid-column:1">${n+1}<small>${esc(p.start)}</small></div>`+
         days.map((_,i)=>`<div class="slot ${dates[i]===today?'todaycol':''}" style="height:72px;grid-row:${n+1};grid-column:${i+2}"></div>`).join('')).join('')}
         ${occurrences.length||markers.length?'':`<div class="empty-tip">本周暂无课程</div>`}</div></div>
@@ -64,16 +64,28 @@
       </main>`;
     positionCards(occurrences,markers,conflicts);
     let touch=null;const scroller=$('.grid-scroll');
-    applyBackground(scroller,table);
+    applyBackground(table);
     scroller.addEventListener('touchstart',e=>{touch={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     scroller.addEventListener('touchend',e=>{if(!touch)return;const dx=e.changedTouches[0].clientX-touch.x,dy=e.changedTouches[0].clientY-touch.y;
       if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.35){week+=dx<0?1:-1;render();}touch=null;},{passive:true});
   }
-  function applyBackground(element,t,fade=Number(t.backgroundFade??58)){
-    if(!element)return;
-    element.classList.toggle('has-background',!!t.background);
-    element.style.backgroundImage=t.background?
-      `linear-gradient(rgba(255,255,255,${fade/100}),rgba(255,255,255,${fade/100})),url("${t.background}")`:'';
+  function applyBackground(t,fade=Number(t.backgroundFade??35)){
+    const scroll=$('.grid-scroll'),image=$('#table-background'),veil=$('#table-background-veil');
+    if(!scroll||!image||!veil)return;
+    const active=!!t.background;
+    scroll.classList.toggle('has-background',active);
+    image.hidden=veil.hidden=!active;
+    if(active){if(image.src!==t.background)image.src=t.background;veil.style.backgroundColor=`rgba(255,255,255,${fade/100})`;}
+    else image.removeAttribute('src');
+  }
+  function applyBackgroundPreview(t,fade=Number(t.backgroundFade??35)){
+    const preview=$('#background-preview'),image=$('#background-preview-image'),veil=$('#background-preview-veil');
+    if(!preview||!image||!veil)return;
+    const active=!!t.background;
+    preview.classList.toggle('has-background',active);
+    image.hidden=veil.hidden=!active;
+    if(active){if(image.src!==t.background)image.src=t.background;veil.style.backgroundColor=`rgba(255,255,255,${fade/100})`;}
+    else image.removeAttribute('src');
   }
   function positionCards(events,markers,conflicts){
     const grid=$('#timetable');if(!grid)return;
@@ -116,14 +128,14 @@
   function openManage(){
     modal('课表',`<div>${state.tables.map(t=>`<div class="listrow"><div><strong>${esc(t.name)}</strong><small>${esc(t.startDate)} · ${t.totalWeeks} 周 · ${t.courses.length} 门课</small></div>
       <div class="row">${t.id===state.activeId?'<span class="current-chip">当前</span>':`<button class="button small" data-action="switch-table" data-id="${esc(t.id)}">打开</button>`}${state.tables.length>1?`<button class="button small danger" data-action="delete-table" data-id="${esc(t.id)}">删除</button>`:''}</div></div>`).join('')}</div>
-      <div class="section-title">当前课表背景</div><div class="background-preview" id="background-preview"><span>${table.background?'':'尚未设置'}</span></div>
+      <div class="section-title">当前课表背景</div><div class="background-preview" id="background-preview"><img id="background-preview-image" alt="" hidden><div id="background-preview-veil" hidden></div><span>${table.background?'':'尚未设置'}</span></div>
       <div class="row background-actions"><button class="button fill" data-action="pick-background">选择 JPG</button>
       <button class="button fill" data-action="clear-background" ${table.background?'':'disabled'}>移除背景</button></div>
-      ${table.background?`<label class="fade-label" for="background-fade">背景淡化 <output id="background-fade-value">${table.backgroundFade??58}%</output></label>
-      <input id="background-fade" type="range" min="0" max="85" value="${table.backgroundFade??58}">`:''}
+      ${table.background?`<label class="fade-label" for="background-fade">背景淡化 <output id="background-fade-value">${table.backgroundFade??35}%</output></label>
+      <input id="background-fade" type="range" min="0" max="85" value="${table.backgroundFade??35}">`:''}
       <div class="section-title">新建课表</div>${field('名称','<input id="new-table-name" placeholder="例如 2026 秋季学期" maxlength="50">')}`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="new-table">新建</button>');
-    applyBackground($('#background-preview'),table);
+    applyBackgroundPreview(table);
   }
   function sessionMarkup(s={},index=0){return `<div class="session" data-id="${esc(s.id||'')}"><div class="session-head"><span>上课时段 ${index+1}</span><button class="button small" type="button" data-action="remove-session">移除</button></div>
     <div class="row"><div class="field"><label>星期</label><select class="s-day">${days.map((d,i)=>`<option value="${i+1}" ${Number(s.day||1)===i+1?'selected':''}>周${d}</option>`).join('')}</select></div>
@@ -240,13 +252,18 @@
       <button class="button fill" data-action="ics">导出日历</button></div>
       <div class="section-title">应用</div><div class="row"><button class="button fill" data-action="check-update">检查更新</button>
       <button class="button fill" data-action="changelog">更新说明</button></div>
-      <p class="version">ClassGrid v1.2.0</p><p class="error" id="settings-error"></p>`,
+      <p class="version">ClassGrid v1.2.2</p><p class="error" id="settings-error"></p>`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-settings">保存</button>');
   }
   function statusText(){return `${reminderStatus.notifications?'通知权限已开启':'通知权限未开启'} · ${reminderStatus.exact?'精确提醒可用':'按系统允许的时间提醒'}`;}
+  function periodRow(p,index){return `<div class="period-row"><span class="period-number">${index+1}</span>
+    <input class="period-start" type="time" value="${esc(p.start)}" aria-label="第 ${index+1} 节开始时间">
+    <span class="period-dash">—</span><input class="period-end" type="time" value="${esc(p.end)}" aria-label="第 ${index+1} 节结束时间"></div>`;}
   function openPeriods(){
-    modal('节次时间',`<div class="note">每行一个节次，格式 08:00-08:45。</div>
-      ${field('时间表',`<textarea id="period-lines" rows="${Math.min(12,table.periods.length+1)}">${table.periods.map(p=>`${p.start}-${p.end}`).join('\n')}</textarea>`)}<p class="error" id="period-error"></p>`,
+    modal('节次时间',`<div class="period-column-head"><span>节</span><span>开始</span><span></span><span>结束</span></div>
+      <div id="period-rows">${table.periods.map(periodRow).join('')}</div>
+      <div class="period-editor-actions"><button class="button small" data-action="add-period" ${table.periods.length>=20?'disabled':''}>＋ 添加节次</button>
+      <button class="button small" data-action="remove-period" ${table.periods.length<=1?'disabled':''}>删除末节</button></div><p class="error" id="period-error" role="alert"></p>`,
       '<button class="button fill" data-action="settings">返回</button><button class="button primary fill" data-action="save-periods">保存</button>');
   }
   async function pickBackgroundInBrowser(){
@@ -378,12 +395,35 @@
       toast('设置已保存');return;
     }
     if(action==='periods'){openPeriods();return;}
+    if(action==='add-period'){
+      const rows=$('#period-rows');if(rows.children.length>=20)return;
+      const last=rows.lastElementChild.querySelector('.period-end').value;
+      const minutes=Number(last.slice(0,2))*60+Number(last.slice(3));
+      if(minutes>23*60+4){$('#period-error').textContent='已到当天末尾，无法自动添加节次';return;}
+      const start=minutes+10,end=Math.min(start+45,23*60+59);
+      const format=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
+      rows.insertAdjacentHTML('beforeend',periodRow({start:format(start),end:format(end)},rows.children.length));
+      $('[data-action="add-period"]').disabled=rows.children.length>=20;
+      $('[data-action="remove-period"]').disabled=false;return;
+    }
+    if(action==='remove-period'){
+      const rows=$('#period-rows');if(rows.children.length<=1)return;
+      if(table.courses.some(c=>c.sessions.some(s=>s.end>=rows.children.length))){$('#period-error').textContent='末节已有课程，不能删除';return;}
+      rows.lastElementChild.remove();$('[data-action="remove-period"]').disabled=rows.children.length<=1;
+      $('[data-action="add-period"]').disabled=false;$('#period-error').textContent='';return;
+    }
     if(action==='save-periods'){
-      try{const periods=$('#period-lines').value.trim().split('\n').map(line=>{
-        const m=line.trim().match(/^(\d\d:\d\d)\s*-\s*(\d\d:\d\d)$/);
-        if(!m||m[1]>=m[2])throw Error('格式应为 08:00-08:45');return {start:m[1],end:m[2]};});
+      try{
+        const periods=[...document.querySelectorAll('#period-rows .period-row')].map((row,index)=>{
+          const start=row.querySelector('.period-start').value,end=row.querySelector('.period-end').value;
+          if(!/^\d\d:\d\d$/.test(start)||!/^\d\d:\d\d$/.test(end)||start>=end)throw Error(`第 ${index+1} 节时间无效`);
+          return {start,end};
+        });
         if(periods.length<1||periods.length>20||table.courses.some(c=>c.sessions.some(s=>s.end>periods.length)))throw Error('节次数量与课程不匹配');
-        table.periods=periods;save();openSettings();render();toast('节次时间已保存');
+        if(periods.some((p,i)=>i>0&&p.start<periods[i-1].end))throw Error('相邻节次时间不能重叠');
+        const old=table.periods;table.periods=periods;
+        if(!save()){table.periods=old;throw Error('保存失败');}
+        openSettings();render();toast('节次时间已保存');
       }catch(e){$('#period-error').textContent=e.message;}return;
     }
     if(action==='notification-permission'){if(native)native.requestReminderPermission();return;}
@@ -391,7 +431,7 @@
     if(action==='backup'){exportFile('ClassGrid-backup.json','application/json',JSON.stringify(state));return;}
     if(action==='ics'){exportFile('ClassGrid-'+table.name+'.ics','text/calendar',M.toIcs(table));return;}
     if(action==='check-update'){if(native)native.checkForUpdates(true);else toast('请在安卓应用中检查更新');return;}
-    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
+    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
     if(action==='download-update'){
       if(pendingUpdate&&native){
         const action=$('[data-action="download-update"]');if(action){action.disabled=true;action.textContent='正在下载';}
@@ -419,13 +459,13 @@
     if(e.target.id!=='background-fade')return;
     const fade=Number(e.target.value);
     $('#background-fade-value').textContent=`${fade}%`;
-    applyBackground($('#background-preview'),table,fade);
-    applyBackground($('.grid-scroll'),table,fade);
+    applyBackgroundPreview(table,fade);
+    applyBackground(table,fade);
   });
   document.addEventListener('change',e=>{
     if(e.target.id!=='background-fade')return;
     const old=table.backgroundFade;table.backgroundFade=Number(e.target.value);
-    if(!save()){table.backgroundFade=old;applyBackground($('.grid-scroll'),table);}
+    if(!save()){table.backgroundFade=old;applyBackground(table);applyBackgroundPreview(table);}
   });
   function exportFile(name,mime,content){if(native)native.exportFile(name,mime,content);else toast('请在安卓应用中导出');}
   window.onFileImported=data=>{
@@ -442,9 +482,31 @@
   window.onBackgroundPicked=data=>{
     if(data.error){toast(data.error);return;}
     const target=state.tables.find(t=>t.id===data.tableId);if(!target)return;
-    const old=target.background;target.background=data.background;
-    if(!save()){target.background=old;return;}
-    render();if(target.id===state.activeId)openManage();toast('背景已更新');
+    let background=data.background;
+    try{
+      if(data.token){
+        if(!native||!Number.isInteger(data.length)||data.length<24||data.length>220000)throw Error('图片传输失败');
+        const chunks=[];
+        for(let offset=0;offset<data.length;offset+=12000){
+          const chunk=native.readBackgroundChunk(data.token,offset,Math.min(12000,data.length-offset));
+          if(typeof chunk!=='string'||chunk.length!==Math.min(12000,data.length-offset))throw Error('图片传输不完整');
+          chunks.push(chunk);
+        }
+        background=chunks.join('');
+        native.clearPendingBackground(data.token);
+      }
+      if(typeof background!=='string'||background.length>220000||!/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(background))throw Error('JPG 图片无效');
+    }catch(e){if(data.token&&native)native.clearPendingBackground(data.token);toast(e.message||'图片传输失败');return;}
+    const preview=new Image();
+    preview.onload=()=>{
+      const old=target.background,oldFade=target.backgroundFade;
+      target.background=background;
+      if(!old&&oldFade===58)target.backgroundFade=35;
+      if(!save()){target.background=old;target.backgroundFade=oldFade;return;}
+      render();if(target.id===state.activeId)openManage();toast('背景已更新');
+    };
+    preview.onerror=()=>toast('JPG 图片无法显示，请重新选择');
+    preview.src=background;
   };
   window.onExportDone=data=>toast(data.ok?'文件已保存':'导出失败');
   window.onReminderStatus=data=>{reminderStatus=data||reminderStatus;const el=$('#permission-status');if(el)el.textContent=statusText();};

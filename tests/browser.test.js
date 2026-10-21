@@ -75,7 +75,9 @@ async function main(){
   const manageShot=await command('Page.captureScreenshot',{format:'png'});
   fs.writeFileSync(path.join(root,'dist','ui-manage.png'),Buffer.from(manageShot.data,'base64'));
   await evaluate('const canvas=document.createElement("canvas");canvas.width=8;canvas.height=8;canvas.getContext("2d").fillRect(0,0,8,8);window.onBackgroundPicked({tableId:JSON.parse(localStorage.getItem("classgrid-state")).activeId,background:canvas.toDataURL("image/jpeg")})');
+  await wait(80);
   assert.equal(await evaluate('document.querySelector(".grid-scroll").classList.contains("has-background")'),true);
+  assert.ok(await evaluate('document.querySelector("#table-background").naturalWidth>0'));
   assert.match(await evaluate('localStorage.getItem("classgrid-state")'),/data:image\/jpeg;base64/);
   await evaluate('document.querySelector("#new-table-name").value="第二张课表";document.querySelector("[data-action=new-table]").click()');
   assert.equal(await evaluate('document.querySelector(".grid-scroll").classList.contains("has-background")'),false);
@@ -124,6 +126,21 @@ async function main(){
   const narrow=await evaluate('({page:document.documentElement.scrollWidth,view:innerWidth,actions:document.querySelector(".sheet-actions").getBoundingClientRect().bottom})');
   assert.ok(narrow.page<=narrow.view,`Narrow screen overflow ${JSON.stringify(narrow)}`);
   assert.ok(narrow.actions<=740,`Settings actions hidden ${JSON.stringify(narrow)}`);
+  await evaluate('document.querySelector("[data-action=periods]").click()');
+  await wait(220);
+  assert.equal(await evaluate('document.querySelectorAll("#period-rows .period-row").length'),12);
+  assert.equal(await evaluate('document.querySelector("#period-lines")===null'),true);
+  const periodLayout=await evaluate('({body:document.querySelector(".sheet-body").scrollWidth,view:document.querySelector(".sheet-body").clientWidth,actions:document.querySelector(".sheet-actions").getBoundingClientRect().bottom})');
+  assert.ok(periodLayout.body<=periodLayout.view,`Period editor overflow ${JSON.stringify(periodLayout)}`);
+  assert.ok(periodLayout.actions<=740,`Period actions hidden ${JSON.stringify(periodLayout)}`);
+  const periodShot=await command('Page.captureScreenshot',{format:'png'});
+  fs.writeFileSync(path.join(root,'dist','ui-periods.png'),Buffer.from(periodShot.data,'base64'));
+  await evaluate('document.querySelector("[data-action=add-period]").click()');
+  assert.equal(await evaluate('document.querySelectorAll("#period-rows .period-row").length'),13);
+  await evaluate('document.querySelector("[data-action=remove-period]").click()');
+  assert.equal(await evaluate('document.querySelectorAll("#period-rows .period-row").length'),12);
+  await evaluate('document.querySelector(".period-start").value="08:05";document.querySelector("[data-action=save-periods]").click()');
+  assert.equal(await evaluate('JSON.parse(localStorage.getItem("classgrid-state")).tables.find(x=>x.id===JSON.parse(localStorage.getItem("classgrid-state")).activeId).periods[0].start'),'08:05');
   await evaluate('document.querySelector("[data-action=close]").click()');
   await wait(220);
   const tap=await evaluate('(()=>{const r=document.querySelector("[data-action=import]").getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()');
@@ -131,7 +148,7 @@ async function main(){
   await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:tap.x,y:tap.y,button:'left',clickCount:1});
   assert.equal(await evaluate('document.querySelector(".sheet-head h2").textContent'),'导入课表');
   assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-action=import]")).transform'),'none');
-  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.Native={loadState:()=>"",saveState:()=>true,syncReminders:()=>{},downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u])};'});
+  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.Native={loadState:()=>localStorage.getItem("classgrid-state")||"",saveState:(json)=>{localStorage.setItem("classgrid-state",json);return true},syncReminders:()=>{},downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u]),readBackgroundChunk:(token,offset,length)=>token==="test"?window.__pendingBackground.slice(offset,offset+length):"",clearPendingBackground:()=>{window.__pendingBackground=null}};'});
   await command('Page.navigate',{url:'file:///'+path.join(root,'app/src/main/assets/index.html').replace(/\\/g,'/')});
   await wait(700);
   await evaluate('window.onUpdateCheck('+JSON.stringify(announcement)+')');
@@ -144,6 +161,12 @@ async function main(){
   assert.equal(await evaluate('document.querySelector("#update-progress").textContent'),'网络超时');
   await evaluate('document.querySelector("[data-action=browser-update]").click()');
   assert.equal(await evaluate('window.__updateCalls[1][0]'),'browser');
+  await evaluate(`(()=>{const c=document.createElement('canvas');c.width=480;c.height=480;const x=c.getContext('2d'),pixels=x.createImageData(480,480);let seed=1;for(let i=0;i<pixels.data.length;i+=4){seed=(seed*1664525+1013904223)>>>0;pixels.data[i]=seed&255;pixels.data[i+1]=(seed>>>8)&255;pixels.data[i+2]=(seed>>>16)&255;pixels.data[i+3]=255}x.putImageData(pixels,0,0);window.__pendingBackground=c.toDataURL('image/jpeg',.4);window.__pendingLength=window.__pendingBackground.length;const table=JSON.parse(localStorage.getItem('classgrid-state'));window.onBackgroundPicked({tableId:table.activeId,token:'test',length:window.__pendingLength})})()`);
+  await wait(140);
+  assert.ok(await evaluate('window.__pendingLength>65536&&window.__pendingLength<=220000'));
+  assert.equal(await evaluate('window.__pendingBackground'),null);
+  assert.equal(await evaluate('document.querySelector(".grid-scroll").classList.contains("has-background")'),true);
+  assert.equal(await evaluate('document.querySelector("#table-background").naturalWidth'),480);
   assert.deepEqual(errors,[]);
   console.log('ClassGrid browser test passed');
 }

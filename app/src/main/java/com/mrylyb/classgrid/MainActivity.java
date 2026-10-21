@@ -44,6 +44,9 @@ public class MainActivity extends Activity {
     private UpdateManager updater;
     private String pendingExport;
     private String pendingBackgroundTableId;
+    private final Object backgroundLock = new Object();
+    private String pendingBackgroundData;
+    private String pendingBackgroundToken;
     private boolean pageReady;
     private boolean foreground;
     private boolean networkCallbackRegistered;
@@ -189,6 +192,23 @@ public class MainActivity extends Activity {
                 startActivityForResult(i, PICK_BACKGROUND);
             });
         }
+        @JavascriptInterface public String readBackgroundChunk(String token, int offset, int length) {
+            synchronized (backgroundLock) {
+                if (token == null || !token.equals(pendingBackgroundToken) || pendingBackgroundData == null
+                    || offset < 0 || offset >= pendingBackgroundData.length() || length < 1 || length > 16384)
+                    return "";
+                return pendingBackgroundData.substring(offset,
+                    Math.min(pendingBackgroundData.length(), offset + length));
+            }
+        }
+        @JavascriptInterface public void clearPendingBackground(String token) {
+            synchronized (backgroundLock) {
+                if (token != null && token.equals(pendingBackgroundToken)) {
+                    pendingBackgroundData = null;
+                    pendingBackgroundToken = null;
+                }
+            }
+        }
         @JavascriptInterface public void openPortal(String url) {
             runOnUiThread(() -> {
                 String safe = "https://jws.syuct.edu.cn/";
@@ -244,8 +264,15 @@ public class MainActivity extends Activity {
                 worker.execute(() -> {
                     JSONObject response = new JSONObject();
                     try {
+                        String background = encodeBackground(image);
+                        String token = java.util.UUID.randomUUID().toString();
+                        synchronized (backgroundLock) {
+                            pendingBackgroundData = background;
+                            pendingBackgroundToken = token;
+                        }
                         response.put("tableId", tableId);
-                        response.put("background", encodeBackground(image));
+                        response.put("token", token);
+                        response.put("length", background.length());
                     } catch (Exception e) {
                         try { response.put("error", e.getMessage() == null ? "无法读取 JPG 图片" : e.getMessage()); }
                         catch (Exception ignored) {}
@@ -317,9 +344,11 @@ public class MainActivity extends Activity {
             if (in == null) throw new IllegalStateException("无法打开图片");
             BitmapFactory.decodeStream(in, null, options);
         }
-        if (!"image/jpeg".equals(options.outMimeType) || options.outWidth < 1 || options.outHeight < 1
-            || options.outWidth > 12000 || options.outHeight > 12000)
-            throw new IllegalStateException("请选择 JPG 图片");
+        if (!"image/jpeg".equals(options.outMimeType)) throw new IllegalStateException("请选择 JPG 图片");
+        if (options.outWidth < 1 || options.outHeight < 1) throw new IllegalStateException("无法读取 JPG 图片尺寸");
+        if (options.outWidth > 30000 || options.outHeight > 30000
+            || (long) options.outWidth * options.outHeight > 400_000_000L)
+            throw new IllegalStateException("图片分辨率过高，请选用较小的 JPG");
         options.inJustDecodeBounds = false;
         options.inSampleSize = 1;
         while (Math.max(options.outWidth, options.outHeight) / options.inSampleSize > 1600)

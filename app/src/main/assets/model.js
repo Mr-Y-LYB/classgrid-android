@@ -10,7 +10,7 @@
   function dateAdd(date,days){const d=new Date(`${date}T12:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
   function weekOf(table,date){return Math.floor((new Date(`${date}T12:00:00`)-new Date(`${table.startDate}T12:00:00`))/604800000)+1;}
   function dateFor(table,week,day){return dateAdd(table.startDate,(week-1)*7+day-1);}
-  function defaultTable(){return {id:uid(),name:'我的课表',startDate:monday(todayDate()),totalWeeks:20,periods:DEFAULT_PERIODS.map(x=>({start:x[0],end:x[1]})),courses:[],exceptions:[],background:'',backgroundFade:58};}
+  function defaultTable(){return {id:uid(),name:'我的课表',startDate:monday(todayDate()),totalWeeks:20,periods:DEFAULT_PERIODS.map(x=>({start:x[0],end:x[1]})),courses:[],exceptions:[],background:'',backgroundFade:35};}
   function defaultState(){const table=defaultTable();return {schema:SCHEMA,activeId:table.id,tables:[table],settings:{remindersEnabled:false,reminderMinutes:15}};}
   function parseWeeks(input,maxWeeks=30){
     const result=new Set();let source=String(input||'').trim();

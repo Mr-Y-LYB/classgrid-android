@@ -57,7 +57,7 @@ final class UpdateManager {
             if (manual) manualRequested = true;
             return;
         }
-        if (!manual && downloading) return;
+        if (!manual && (downloading || pendingInstall != null)) return;
         long now = SystemClock.elapsedRealtime();
         if (!manual && lastAutoCheckAt != 0 && now - lastAutoCheckAt < (lastAutoFailed ? 15000 : 60000)
             && !(networkAvailable && lastAutoFailed)) return;
@@ -118,15 +118,19 @@ final class UpdateManager {
     }
 
     synchronized void download(String url, String digest, String version) {
-        if (downloading) return;
+        if (downloading) {
+            progress("已有下载任务正在进行");
+            return;
+        }
         if (url == null || !url.startsWith(ASSET_PREFIX)
             || digest == null || !digest.matches("sha256:[a-fA-F0-9]{64}")
             || version == null || !version.matches("\\d+\\.\\d+\\.\\d+")
             || compareVersion(version, currentVersion()) <= 0) {
-            result(false, "更新信息无效");
+            result(false, "更新信息无效", true);
             return;
         }
         downloading = true;
+        progress("正在连接下载源…");
         worker.execute(() -> {
             File temp = null;
             try {
@@ -139,10 +143,12 @@ final class UpdateManager {
                 conn.setReadTimeout(30000);
                 conn.setRequestProperty("User-Agent", "ClassGrid/" + currentVersion());
                 try {
-                    if (conn.getResponseCode() != 200 || !"https".equals(conn.getURL().getProtocol()))
-                        throw new IllegalStateException("下载失败");
+                    int code = conn.getResponseCode();
+                    if (code != 200 || !"https".equals(conn.getURL().getProtocol()))
+                        throw new IllegalStateException("下载源返回 HTTP " + code);
                     long expectedSize = conn.getContentLengthLong();
                     if (expectedSize > MAX_APK_BYTES) throw new IllegalStateException("安装包过大");
+                    progress("正在下载…");
                     MessageDigest hash = MessageDigest.getInstance("SHA-256");
                     long total = 0;
                     int lastPercent = -1;
@@ -166,6 +172,7 @@ final class UpdateManager {
                     }
                     if (total == 0 || (expectedSize > 0 && total != expectedSize))
                         throw new IllegalStateException("下载不完整");
+                    progress("正在校验安装包…");
                     String actual = hex(hash.digest());
                     if (!actual.equalsIgnoreCase(digest.substring(7)))
                         throw new IllegalStateException("安装包校验失败");
@@ -177,7 +184,7 @@ final class UpdateManager {
                 } finally { conn.disconnect(); }
             } catch (Exception e) {
                 if (temp != null) temp.delete();
-                result(false, e.getMessage() == null ? "更新失败" : e.getMessage());
+                result(false, e.getMessage() == null ? "更新失败" : e.getMessage(), true);
             } finally {
                 synchronized (this) { downloading = false; }
             }
@@ -202,7 +209,7 @@ final class UpdateManager {
         try {
             if (!activity.getPackageManager().canRequestPackageInstalls()) {
                 pendingInstall = apk;
-                result(false, "请允许ClassGrid安装应用，返回后继续");
+                result(false, "请允许 ClassGrid 安装应用，返回后继续", false);
                 Intent settings = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     Uri.parse("package:" + activity.getPackageName()));
                 activity.startActivity(settings);
@@ -216,18 +223,52 @@ final class UpdateManager {
             intent.setClipData(ClipData.newRawUri("ClassGrid更新", uri));
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             activity.startActivity(intent);
-            result(true, "请在系统安装界面确认更新");
+            result(true, "请在系统安装界面确认更新", false);
         } catch (Exception e) {
-            result(false, "无法打开系统安装界面");
+            pendingInstall = null;
+            result(false, "无法打开系统安装界面", true);
         }
     }
 
     void resumePendingInstall() {
-        if (pendingInstall != null && activity.getPackageManager().canRequestPackageInstalls())
-            install(pendingInstall);
+        if (pendingInstall == null) return;
+        if (activity.getPackageManager().canRequestPackageInstalls()) install(pendingInstall);
+        else {
+            pendingInstall = null;
+            result(false, "尚未获得安装权限，可重试或在浏览器下载", true);
+        }
     }
 
-    private void result(boolean ok, String message) {
+    void openInBrowser(String url) {
+        if (url == null || !url.startsWith(ASSET_PREFIX)) {
+            result(false, "下载地址无效", true);
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                intent.addCategory(Intent.CATEGORY_BROWSABLE);
+                activity.startActivity(intent);
+                synchronized (this) { promptedVersion = ""; lastAutoCheckAt = 0; }
+                result(true, "已在浏览器打开下载地址", false);
+            } catch (Exception e) {
+                result(false, "无法打开浏览器", true);
+            }
+        });
+    }
+
+    private void progress(String message) {
+        JSONObject obj = new JSONObject();
+        try { obj.put("message", message); } catch (Exception ignored) {}
+        callback.accept("onUpdateProgress", obj.toString());
+    }
+
+    private void result(boolean ok, String message, boolean retryOnResume) {
+        if (retryOnResume) synchronized (this) {
+            promptedVersion = "";
+            lastAutoCheckAt = 0;
+            lastAutoFailed = true;
+        }
         JSONObject obj = new JSONObject();
         try { obj.put("ok", ok); obj.put("message", message); } catch (Exception ignored) {}
         callback.accept("onUpdateDownload", obj.toString());

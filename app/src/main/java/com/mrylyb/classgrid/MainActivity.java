@@ -229,6 +229,9 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void downloadUpdate(String url, String digest, String version) {
             updater.download(url, digest, version);
         }
+        @JavascriptInterface public void openUpdateInBrowser(String url) {
+            updater.openInBrowser(url);
+        }
     }
 
     @Override protected void onActivityResult(int request, int result, Intent data) {

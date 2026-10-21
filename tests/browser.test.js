@@ -85,12 +85,18 @@ async function main(){
   await wait(220);
   const backgroundShot=await command('Page.captureScreenshot',{format:'png'});
   fs.writeFileSync(path.join(root,'dist','ui-background.png'),Buffer.from(backgroundShot.data,'base64'));
-  const announcement={available:true,version:'1.2.0',notes:['# ClassGrid v1.2.0','','- 修复排版','- 加入背景','','APK SHA-256: abc'].join(String.fromCharCode(10)),size:1024000,
-    url:'https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v1.2.0/ClassGrid-v1.2.0.apk',digest:'sha256:'+'a'.repeat(64)};
+  const announcement={available:true,version:'1.2.1',notes:['# ClassGrid v1.2.1','','- 修复更新反馈','- 加入浏览器下载','','APK SHA-256: abc'].join(String.fromCharCode(10)),size:1024000,
+    url:'https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v1.2.1/ClassGrid-v1.2.1.apk',digest:'sha256:'+'a'.repeat(64)};
   await evaluate('window.onUpdateCheck('+JSON.stringify(announcement)+')');
   assert.equal(await evaluate('document.querySelector(".sheet-head h2").textContent'),'发现新版本');
   assert.equal(await evaluate('document.querySelectorAll(".update-list li").length'),2);
-  assert.equal(await evaluate('document.querySelector(".update-badge").textContent'),'v1.2.0');
+  assert.equal(await evaluate('document.querySelector(".update-badge").textContent'),'v1.2.1');
+  assert.equal(await evaluate('document.querySelectorAll("[data-action=browser-update]").length'),1);
+  await evaluate('window.onUpdateProgress({message:"正在连接下载源…"})');
+  assert.match(await evaluate('document.querySelector("#update-progress").textContent'),/正在连接/);
+  await evaluate('window.onUpdateDownload({ok:false,message:"下载失败，请重试"})');
+  assert.equal(await evaluate('document.querySelector("[data-action=download-update]").textContent'),'重试');
+  assert.equal(await evaluate('document.querySelector("#update-progress").classList.contains("error")'),true);
   assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-action=manage]")).transform'),'none');
   await wait(220);
   const updateShot=await command('Page.captureScreenshot',{format:'png'});
@@ -125,6 +131,19 @@ async function main(){
   await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:tap.x,y:tap.y,button:'left',clickCount:1});
   assert.equal(await evaluate('document.querySelector(".sheet-head h2").textContent'),'导入课表');
   assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-action=import]")).transform'),'none');
+  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.Native={loadState:()=>"",saveState:()=>true,syncReminders:()=>{},downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u])};'});
+  await command('Page.navigate',{url:'file:///'+path.join(root,'app/src/main/assets/index.html').replace(/\\/g,'/')});
+  await wait(700);
+  await evaluate('window.onUpdateCheck('+JSON.stringify(announcement)+')');
+  await evaluate('document.querySelector("[data-action=download-update]").click()');
+  assert.match(await evaluate('document.querySelector("#update-progress").textContent'),/正在连接/);
+  assert.equal(await evaluate('document.querySelector("[data-action=download-update]").disabled'),true);
+  assert.equal(await evaluate('window.__updateCalls[0][0]'),'download');
+  await evaluate('window.onUpdateDownload({ok:false,message:"网络超时"})');
+  assert.equal(await evaluate('document.querySelector("[data-action=download-update]").disabled'),false);
+  assert.equal(await evaluate('document.querySelector("#update-progress").textContent'),'网络超时');
+  await evaluate('document.querySelector("[data-action=browser-update]").click()');
+  assert.equal(await evaluate('window.__updateCalls[1][0]'),'browser');
   assert.deepEqual(errors,[]);
   console.log('ClassGrid browser test passed');
 }

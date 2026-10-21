@@ -54,19 +54,27 @@
     return raw;
   }
   function activeTable(state){return state.tables.find(t=>t.id===state.activeId)||state.tables[0];}
+  function effectiveChanges(table){
+    const latest=new Map(),extra=[];
+    for(const change of table.exceptions||[]){
+      if(change.type==='extra')extra.push(change);
+      else latest.set(`${change.sessionId}@${change.sourceDate}`,change);
+    }
+    return {latest,all:[...latest.values(),...extra]};
+  }
   function occurrences(table,week){
     const out=[];if(week<1||week>table.totalWeeks)return out;
     const from=dateFor(table,week,1),to=dateFor(table,week,7);
-    const changes=table.exceptions||[];
+    const changes=effectiveChanges(table);
     for(const course of table.courses)for(const session of course.sessions){
       if(!session.weeks.includes(week))continue;
       const date=dateFor(table,week,session.day);
-      const change=changes.find(x=>x.sessionId===session.id&&x.sourceDate===date);
+      const change=changes.latest.get(`${session.id}@${date}`);
       if(change&&['cancel','move'].includes(change.type))continue;
       out.push({id:`${session.id}@${date}`,courseId:course.id,sessionId:session.id,date,day:session.day,start:session.start,end:session.end,
         name:course.name,teacher:course.teacher||'',room:course.room||'',color:course.color||COLORS[0],moved:false});
     }
-    for(const change of changes){
+    for(const change of changes.all){
       if(change.type!=='move'&&change.type!=='extra')continue;
       if(!change.targetDate||change.targetDate<from||change.targetDate>to)continue;
       const course=table.courses.find(x=>x.id===change.courseId);if(!course)continue;
@@ -74,6 +82,22 @@
       out.push({id:change.id,courseId:course.id,sessionId:change.sessionId||'',date:change.targetDate,day,
         start:change.start,end:change.end,name:course.name,teacher:course.teacher||'',room:change.room||course.room||'',
         color:course.color||COLORS[0],moved:true});
+    }
+    return out.sort((a,b)=>a.day-b.day||a.start-b.start||a.name.localeCompare(b.name,'zh'));
+  }
+  function changeMarkers(table,week){
+    if(week<1||week>table.totalWeeks)return [];
+    const from=dateFor(table,week,1),to=dateFor(table,week,7),out=[];
+    for(const change of effectiveChanges(table).latest.values()){
+      if(change.sourceDate<from||change.sourceDate>to)continue;
+      const course=table.courses.find(x=>x.id===change.courseId);
+      const session=course?.sessions.find(x=>x.id===change.sessionId);
+      if(!session||!session.weeks.includes(week)||dateFor(table,week,session.day)!==change.sourceDate)continue;
+      if(change.type==='move'&&change.targetDate===change.sourceDate&&change.start===session.start&&change.end===session.end)continue;
+      out.push({id:`marker:${change.id}`,exceptionId:change.id,courseId:course.id,sessionId:session.id,
+        date:change.sourceDate,day:session.day,start:session.start,end:session.end,
+        name:course.name,room:course.room||'',color:course.color||COLORS[0],type:change.type,
+        targetDate:change.targetDate||'',targetStart:change.start,targetEnd:change.end});
     }
     return out.sort((a,b)=>a.day-b.day||a.start-b.start||a.name.localeCompare(b.name,'zh'));
   }
@@ -109,5 +133,5 @@
     return {enabled:!!state.settings.remindersEnabled,minutes:Number(state.settings.reminderMinutes??15),events};
   }
   return {SCHEMA,COLORS,DEFAULT_PERIODS,uid,todayDate,monday,dateAdd,weekOf,dateFor,defaultTable,defaultState,parseWeeks,weeksLabel,
-    validateState,activeTable,occurrences,conflicts,allOccurrences,eventTime,toIcs,reminderPayload};
+    validateState,activeTable,occurrences,changeMarkers,conflicts,allOccurrences,eventTime,toIcs,reminderPayload};
 });

@@ -6,6 +6,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.provider.Settings;
+import android.os.SystemClock;
 
 import androidx.core.content.FileProvider;
 
@@ -37,6 +38,9 @@ final class UpdateManager {
     private boolean manualRequested;
     private boolean downloading;
     private File pendingInstall;
+    private long lastAutoCheckAt;
+    private boolean lastAutoFailed;
+    private String promptedVersion = "";
 
     UpdateManager(MainActivity activity, ExecutorService worker, BiConsumer<String, String> callback) {
         this.activity = activity;
@@ -44,11 +48,20 @@ final class UpdateManager {
         this.callback = callback;
     }
 
-    synchronized void check(boolean manual) {
+    void check(boolean manual) { check(manual, false); }
+
+    void checkOnNetworkAvailable() { check(false, true); }
+
+    private synchronized void check(boolean manual, boolean networkAvailable) {
         if (checking) {
             if (manual) manualRequested = true;
             return;
         }
+        if (!manual && downloading) return;
+        long now = SystemClock.elapsedRealtime();
+        if (!manual && lastAutoCheckAt != 0 && now - lastAutoCheckAt < (lastAutoFailed ? 15000 : 60000)
+            && !(networkAvailable && lastAutoFailed)) return;
+        lastAutoCheckAt = now;
         checking = true;
         manualRequested = manual;
         worker.execute(() -> {
@@ -89,13 +102,18 @@ final class UpdateManager {
                 catch (Exception ignored) {}
             }
             boolean showManual;
+            boolean suppressPrompt;
             synchronized (this) {
                 showManual = manualRequested;
                 manualRequested = false;
                 checking = false;
+                lastAutoFailed = response.has("error");
+                String version = response.optString("version", "");
+                suppressPrompt = !showManual && response.optBoolean("available") && version.equals(promptedVersion);
+                if (response.optBoolean("available")) promptedVersion = version;
             }
             try { response.put("manual", showManual); } catch (Exception ignored) {}
-            callback.accept("onUpdateCheck", response.toString());
+            if (!suppressPrompt) callback.accept("onUpdateCheck", response.toString());
         });
     }
 

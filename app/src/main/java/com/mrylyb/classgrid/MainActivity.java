@@ -5,6 +5,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -35,6 +38,16 @@ public class MainActivity extends Activity {
     private UpdateManager updater;
     private String pendingExport;
     private boolean pageReady;
+    private boolean foreground;
+    private boolean networkCallbackRegistered;
+    private ConnectivityManager connectivity;
+    private final ConnectivityManager.NetworkCallback updateNetworkCallback = new ConnectivityManager.NetworkCallback() {
+        @Override public void onAvailable(Network network) {
+            runOnUiThread(() -> {
+                if (foreground && pageReady && updater != null) updater.checkOnNetworkAvailable();
+            });
+        }
+    };
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -43,6 +56,7 @@ public class MainActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         updater = new UpdateManager(this, worker, this::callback);
+        connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         web = new WebView(this);
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
@@ -57,7 +71,7 @@ public class MainActivity extends Activity {
             }
             @Override public void onPageFinished(WebView view, String url) {
                 pageReady = true;
-                updater.check(false);
+                requestAutoUpdate();
                 callback("onReminderStatus", ReminderScheduler.status(MainActivity.this).toString());
             }
         });
@@ -67,6 +81,14 @@ public class MainActivity extends Activity {
 
     private File stateFile() { return new File(getFilesDir(), "classgrid.json"); }
 
+    private void requestAutoUpdate() {
+        if (!pageReady || connectivity == null) return;
+        Network network = connectivity.getActiveNetwork();
+        NetworkCapabilities capabilities = network == null ? null : connectivity.getNetworkCapabilities(network);
+        if (capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET))
+            updater.check(false);
+    }
+
     private void callback(String name, String argument) {
         runOnUiThread(() -> {
             if (web != null && pageReady) web.evaluateJavascript("window." + name + "(" + argument + ")", null);
@@ -75,12 +97,28 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        foreground = true;
+        if (connectivity != null && !networkCallbackRegistered) {
+            try {
+                connectivity.registerDefaultNetworkCallback(updateNetworkCallback);
+                networkCallbackRegistered = true;
+            } catch (RuntimeException ignored) {}
+        }
         if (updater != null) {
             updater.resumePendingInstall();
-            if (pageReady) updater.check(false);
+            requestAutoUpdate();
         }
         worker.execute(() -> ReminderScheduler.schedule(this));
         if (pageReady) callback("onReminderStatus", ReminderScheduler.status(this).toString());
+    }
+
+    @Override protected void onPause() {
+        foreground = false;
+        if (networkCallbackRegistered) {
+            connectivity.unregisterNetworkCallback(updateNetworkCallback);
+            networkCallbackRegistered = false;
+        }
+        super.onPause();
     }
 
     @Override protected void onDestroy() {

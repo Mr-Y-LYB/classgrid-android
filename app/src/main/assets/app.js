@@ -5,7 +5,7 @@
   const native=window.Native||null;
   const days=['一','二','三','四','五','六','日'];
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let state,week=1,eventsById=new Map(),selectedEvent=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:true,exact:true};
+  let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:true,exact:true};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
   catch(e){state=M.defaultState();}
   let table=M.activeTable(state);week=Math.max(1,Math.min(table.totalWeeks,M.weekOf(table,M.todayDate())));
@@ -26,11 +26,11 @@
     week=Math.max(1,Math.min(table.totalWeeks,week));
     const today=M.todayDate();
     const dates=days.map((_,i)=>M.dateFor(table,week,i+1));
-    const occurrences=M.occurrences(table,week),conflicts=M.conflicts(occurrences);
+    const occurrences=M.occurrences(table,week),markers=M.changeMarkers(table,week),conflicts=M.conflicts(occurrences);
     eventsById=new Map(occurrences.map(x=>[x.id,x]));
+    markersById=new Map(markers.map(x=>[x.id,x]));
     $('#app').innerHTML=`<main class="shell">
-      <div class="top"><div class="brand"><span class="brandmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="brandtitle">ClassGrid</span></div>
-        <button class="iconbtn" data-action="settings" aria-label="设置">⚙</button></div>
+      <div class="top"><div class="brand"><span class="brandmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="brandtitle">ClassGrid</span></div></div>
       <div class="toolbar"><button class="table-select" data-action="manage">${esc(table.name)} ▾</button>
         <div class="weeknav"><button class="iconbtn" data-action="prev" aria-label="上一周">‹</button>
           <button class="weekpill" data-action="week">第 ${week} 周</button>
@@ -40,31 +40,37 @@
       <div class="grid-scroll"><div class="timetable" id="timetable">${table.periods.map((p,n)=>
         `<div class="period-label" style="height:72px;grid-row:${n+1};grid-column:1">${n+1}<small>${esc(p.start)}</small></div>`+
         days.map((_,i)=>`<div class="slot ${dates[i]===today?'todaycol':''}" style="height:72px;grid-row:${n+1};grid-column:${i+2}"></div>`).join('')).join('')}
-        ${occurrences.length?'':`<div class="empty-tip">本周暂无课程</div>`}</div></div>
+        ${occurrences.length||markers.length?'':`<div class="empty-tip">本周暂无课程</div>`}</div></div>
       <nav class="bottom"><button class="navbtn primary" data-action="add"><b>＋</b>添加</button>
         <button class="navbtn" data-action="import"><b>⇩</b>导入</button>
         <button class="navbtn" data-action="manage"><b>▦</b>课表</button>
         <button class="navbtn" data-action="settings"><b>⚙</b>设置</button></nav>
       </main>`;
-    positionCards(occurrences,conflicts);
+    positionCards(occurrences,markers,conflicts);
     let touch=null;const scroller=$('.grid-scroll');
     scroller.addEventListener('touchstart',e=>{touch={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     scroller.addEventListener('touchend',e=>{if(!touch)return;const dx=e.changedTouches[0].clientX-touch.x,dy=e.changedTouches[0].clientY-touch.y;
       if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.35){week+=dx<0?1:-1;render();}touch=null;},{passive:true});
   }
-  function positionCards(events,conflicts){
+  function positionCards(events,markers,conflicts){
     const grid=$('#timetable');if(!grid)return;
     const width=(grid.clientWidth-14-34)/7;
-    for(const event of events){
-      const overlapping=events.filter(x=>x.day===event.day&&x.start<=event.end&&event.start<=x.end);
-      const count=overlapping.length,index=overlapping.findIndex(x=>x.id===event.id);
-      const button=document.createElement('button');button.className='course-card'+(conflicts.has(event.id)?' conflict':'')+(event.moved?' moved':'');
-      button.style.background=event.color;button.style.top=((event.start-1)*72+3)+'px';
-      button.style.height=((event.end-event.start+1)*72-6)+'px';
-      button.style.left=(7+34+(event.day-1)*width+(width*index/count)+2)+'px';
+    const entries=[...events,...markers];
+    for(const entry of entries){
+      const overlapping=entries.filter(x=>x.day===entry.day&&x.start<=entry.end&&entry.start<=x.end);
+      const count=overlapping.length,index=overlapping.findIndex(x=>x.id===entry.id);
+      const marker=!!entry.exceptionId;
+      const button=document.createElement('button');button.className='course-card'+(marker?' change-marker':'')+(conflicts.has(entry.id)?' conflict':'')+(entry.moved?' moved':'');
+      if(!marker)button.style.background=entry.color;
+      else button.style.setProperty('--course-color',entry.color);
+      button.style.top=((entry.start-1)*72+3)+'px';
+      button.style.height=((entry.end-entry.start+1)*72-6)+'px';
+      button.style.left=(7+34+(entry.day-1)*width+(width*index/count)+2)+'px';
       button.style.width=(width/count-4)+'px';
-      button.dataset.action='detail';button.dataset.id=event.id;
-      button.innerHTML=`<strong>${esc(event.name)}</strong><span>${esc(event.room)}</span>`;
+      button.dataset.action=marker?'marker':'detail';button.dataset.id=entry.id;
+      button.setAttribute('aria-label',marker?`${entry.name}，${entry.type==='cancel'?'本次停课':`已调至${entry.targetDate}第${entry.targetStart}至${entry.targetEnd}节`}`:entry.name);
+      button.innerHTML=marker?`<strong>${esc(entry.name)}</strong><span>${entry.type==='cancel'?'本次停课':`已调至<br>${esc(dateLabel(entry.targetDate))} ${entry.targetStart}-${entry.targetEnd}节`}</span>`:
+        `<strong>${esc(entry.name)}</strong><span>${esc(entry.room)}</span>`;
       grid.appendChild(button);
     }
   }
@@ -73,7 +79,12 @@
       <div class="sheet-head"><h2>${esc(title)}</h2><button class="iconbtn" data-action="close" aria-label="关闭">×</button></div>
       <div class="sheet-body">${body}</div>${actions?`<div class="sheet-actions">${actions}</div>`:''}</section></div>`;
   }
-  function close(){ $('#modal-root').innerHTML=''; }
+  function close(){
+    const root=$('#modal-root'),overlay=root.firstElementChild;
+    if(!overlay)return;
+    overlay.classList.add('closing');
+    setTimeout(()=>{if(root.firstElementChild===overlay)root.innerHTML='';},170);
+  }
   function field(label,input){return `<div class="field"><label>${label}</label>${input}</div>`;}
   function openWeek(){modal('选择周次',field('周次',`<input id="week-input" type="number" min="1" max="${table.totalWeeks}" value="${week}">`),
     '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="set-week">确定</button>');}
@@ -128,23 +139,38 @@
     }catch(e){$('#editor-error').textContent=e.message;}
   }
   function detail(eventId){
-    const event=eventsById.get(eventId);if(!event)return;selectedEvent=event;
+    const event=eventsById.get(eventId);if(!event)return;selectedEvent=event;selectedMarker=null;
     const course=table.courses.find(x=>x.id===event.courseId);if(!course)return;
+    if(event.moved){
+      const change=table.exceptions.find(x=>x.id===event.id),session=course.sessions.find(x=>x.id===event.sessionId);
+      if(change&&session)selectedMarker={exceptionId:change.id,courseId:course.id,sessionId:session.id,date:change.sourceDate,
+        start:session.start,end:session.end,room:course.room||'',type:'move'};
+    }
     const info=`<div class="note" style="border-left:5px solid ${esc(event.color)}"><strong>${esc(course.name)}</strong><br>
       周${days[event.day-1]} · 第 ${event.start}-${event.end} 节 · ${esc(event.date)}<br>
       ${esc(event.room||'未填写教室')} ${event.teacher?'· '+esc(event.teacher):''}</div>
       <div class="muted">${event.moved?'本次课程已调课':`常规周次：${esc(M.weeksLabel(course.sessions.find(s=>s.id===event.sessionId)?.weeks||[]))}`}</div>`;
     modal('课程详情',info,`<button class="button" data-action="edit-selected">编辑整门课</button>
-      ${event.moved?'<button class="button" data-action="restore-occurrence">恢复本次</button>':
+      ${event.moved?(selectedMarker?'<button class="button" data-action="move-occurrence">修改调课</button>':'')+'<button class="button" data-action="restore-occurrence">恢复本次</button>':
         '<button class="button" data-action="cancel-occurrence">本次停课</button><button class="button" data-action="move-occurrence">本次调课</button>'}`);
   }
+  function detailMarker(markerId){
+    const marker=markersById.get(markerId);if(!marker)return;
+    selectedMarker=marker;selectedEvent=null;
+    const destination=marker.type==='move'?`<br>调至 ${esc(marker.targetDate)} · 第 ${marker.targetStart}-${marker.targetEnd} 节`:'';
+    modal(marker.type==='cancel'?'本次停课':'本次调课',`<div class="note" style="border-left:5px solid ${esc(marker.color)}"><strong>${esc(marker.name)}</strong><br>
+      原定 ${esc(marker.date)} · 第 ${marker.start}-${marker.end} 节${destination}</div>`,
+      `<button class="button fill" data-action="move-occurrence">${marker.type==='cancel'?'改为调课':'修改调课'}</button>
+      <button class="button primary fill" data-action="restore-occurrence">恢复原安排</button>`);
+  }
   function openMove(){
-    if(!selectedEvent)return;
-    modal('本次调课',`<div class="note">原课：${esc(selectedEvent.date)} 第 ${selectedEvent.start}-${selectedEvent.end} 节</div>
-      ${field('新日期',`<input id="move-date" type="date" min="${table.startDate}" max="${M.dateFor(table,table.totalWeeks,7)}" value="${selectedEvent.date}">`)}
-      <div class="row">${field('开始节',`<input id="move-start" type="number" min="1" max="${table.periods.length}" value="${selectedEvent.start}">`)}
-      ${field('结束节',`<input id="move-end" type="number" min="1" max="${table.periods.length}" value="${selectedEvent.end}">`)}</div>
-      ${field('教室',`<input id="move-room" value="${esc(selectedEvent.room)}">`)}<p class="error" id="move-error"></p>`,
+    const source=selectedMarker||selectedEvent;if(!source)return;
+    const old=selectedMarker&&table.exceptions.find(x=>x.id===selectedMarker.exceptionId);
+    modal(old?.type==='move'?'修改调课':'本次调课',`<div class="note">原课：${esc(source.date)} 第 ${source.start}-${source.end} 节</div>
+      ${field('新日期',`<input id="move-date" type="date" min="${table.startDate}" max="${M.dateFor(table,table.totalWeeks,7)}" value="${old?.targetDate||source.date}">`)}
+      <div class="row">${field('开始节',`<input id="move-start" type="number" min="1" max="${table.periods.length}" value="${old?.start||source.start}">`)}
+      ${field('结束节',`<input id="move-end" type="number" min="1" max="${table.periods.length}" value="${old?.end||source.end}">`)}</div>
+      ${field('教室',`<input id="move-room" value="${esc(old?.room??source.room)}">`)}<p class="error" id="move-error"></p>`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-move">保存</button>');
   }
   function openImport(){
@@ -183,7 +209,7 @@
       <button class="button fill" data-action="ics">导出日历</button></div>
       <div class="section-title">应用</div><div class="row"><button class="button fill" data-action="check-update">检查更新</button>
       <button class="button fill" data-action="changelog">更新说明</button></div>
-      <p class="version">ClassGrid v1.0.0</p><p class="error" id="settings-error"></p>`,
+      <p class="version">ClassGrid v1.1.0</p><p class="error" id="settings-error"></p>`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-settings">保存</button>');
   }
   function statusText(){return `${reminderStatus.notifications?'通知权限已开启':'通知权限未开启'} · ${reminderStatus.exact?'精确提醒可用':'按系统允许的时间提醒'}`;}
@@ -216,6 +242,7 @@
     }
     if(action==='add'){openEditor();return;}
     if(action==='detail'){detail(button.dataset.id);return;}
+    if(action==='marker'){detailMarker(button.dataset.id);return;}
     if(action==='edit-selected'){const id=selectedEvent?.courseId;openEditor(id);return;}
     if(action==='add-session'){$('#sessions').insertAdjacentHTML('beforeend',sessionMarkup({},$('#sessions').children.length));return;}
     if(action==='remove-session'){if($('#sessions').children.length>1)button.closest('.session').remove();return;}
@@ -235,18 +262,24 @@
     }
     if(action==='cancel-occurrence'){
       if(!selectedEvent)return;
+      table.exceptions=table.exceptions.filter(x=>x.sessionId!==selectedEvent.sessionId||x.sourceDate!==selectedEvent.date);
       table.exceptions.push({id:M.uid(),type:'cancel',courseId:selectedEvent.courseId,sessionId:selectedEvent.sessionId,sourceDate:selectedEvent.date});
       save();close();render();toast('本次课程已标记停课');return;
     }
     if(action==='move-occurrence'){openMove();return;}
     if(action==='restore-occurrence'){
-      table.exceptions=table.exceptions.filter(x=>x.id!==selectedEvent?.id);save();close();render();toast('已恢复');return;
+      const id=selectedMarker?.exceptionId||selectedEvent?.id;
+      table.exceptions=table.exceptions.filter(x=>x.id!==id);save();close();render();toast('已恢复');return;
     }
     if(action==='save-move'){
       const date=$('#move-date').value,start=Number($('#move-start').value),end=Number($('#move-end').value);
       if(!date||date<table.startDate||date>M.dateFor(table,table.totalWeeks,7)||start<1||end<start||end>table.periods.length){$('#move-error').textContent='请检查日期和节次';return;}
-      table.exceptions.push({id:M.uid(),type:'move',courseId:selectedEvent.courseId,sessionId:selectedEvent.sessionId,sourceDate:selectedEvent.date,
-        targetDate:date,start,end,room:$('#move-room').value.trim()});save();close();week=M.weekOf(table,date);render();return;
+      const source=selectedMarker||selectedEvent,room=$('#move-room').value.trim();if(!source)return;
+      if(date===source.date&&start===source.start&&end===source.end&&room===source.room){$('#move-error').textContent='新安排与原安排相同';return;}
+      const change={id:M.uid(),type:'move',courseId:source.courseId,sessionId:source.sessionId,sourceDate:source.date,
+        targetDate:date,start,end,room};
+      table.exceptions=table.exceptions.filter(x=>x.sessionId!==source.sessionId||x.sourceDate!==source.date);
+      table.exceptions.push(change);save();close();render();toast(`已调至 ${date} 第 ${start}-${end} 节`);return;
     }
     if(action==='import'){openImport();return;}
     if(action==='school'){if(native)native.openPortal('https://jws.syuct.edu.cn/');else toast('请在安卓应用中打开');return;}
@@ -294,7 +327,7 @@
     if(action==='backup'){exportFile('ClassGrid-backup.json','application/json',JSON.stringify(state,null,2));return;}
     if(action==='ics'){exportFile('ClassGrid-'+table.name+'.ics','text/calendar',M.toIcs(table));return;}
     if(action==='check-update'){if(native)native.checkForUpdates(true);else toast('请在安卓应用中检查更新');return;}
-    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
+    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
     if(action==='download-update'){
       if(pendingUpdate&&native)native.downloadUpdate(pendingUpdate.url,pendingUpdate.digest,pendingUpdate.version);return;
     }
@@ -330,5 +363,15 @@
   };
   window.onUpdateProgress=data=>{const el=$('.sheet-body .muted');if(el)el.textContent=`下载中 ${data.percent}%`;};
   window.onUpdateDownload=data=>toast(data.message||'更新结束');
+  let resizeTimer;
+  window.addEventListener('resize',()=>{
+    clearTimeout(resizeTimer);
+    resizeTimer=setTimeout(()=>{
+      const grid=$('#timetable');if(!grid)return;
+      grid.querySelectorAll('.course-card').forEach(card=>card.remove());
+      const events=M.occurrences(table,week);
+      positionCards(events,M.changeMarkers(table,week),M.conflicts(events));
+    },80);
+  });
   render();
 })();

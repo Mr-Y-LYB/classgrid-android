@@ -1,41 +1,29 @@
 # ClassGrid
 
-安卓本地课程表。无广告、无账号；课程、节次和提醒设置保存在手机内。教务系统导入与检查更新需要联网。
+安卓课程表，无广告。课程、设置和图片保存在手机本地；教务网页导入及检查更新需要联网。
 
 ## 使用
 
-1. 在“课表”首页点击“切换／新建”管理课表，设置第一周周一和总周数。每张课表可单独选择 JPG 背景并调节淡化程度。
-2. 点击“添加课程”手动录入；一门课可设置多个星期、节次和周次。“导入课表”用于教务网页或文件数据。
-3. 点击课程可编辑整门课，或只调整、取消这一次上课；原时段会保留可点击的调课或停课提示。
-4. “导入”支持 CSV、XLSX 模板及网页课表。沈阳化工大学本科生可在应用内登录 `https://jws.syuct.edu.cn/`，进入“学生个人课表”后点击“提取”。所有导入均先预览，再选择新建、追加或替换。
-5. “设置”中可逐节修改上课时间、开启本地提醒、导出 JSON 备份或 ICS 日历。JSON 备份包含各课表的背景图片。
+- 在“课表”切换或新建课表，设置开学日期、周数和 JPG 背景。
+- 在“添加课程”录入课程、周次和节次；在“导入课表”导入 CSV、XLSX 或教务网页。批量导入会先显示预览。
+- 点击课程可编辑、调课或停课。原时段保留变更提示。
+- 在“设置”修改节次时间、开启提醒、导出或恢复 JSON 备份，以及导出 ICS 日历。
 
-教务登录表单由学校网页提供；应用不保存账号、密码或 Cookie。退出教务页面后清除网页 Cookie。学校页面若发生变更，可使用文件或手动导入。沈化页面解析已按公开格式和脱敏结构样本测试，尚需在学校系统恢复登录后进行真人实测。
+沈阳化工大学教务导入：打开 `https://jws.syuct.edu.cn/`，登录并进入学生个人课表，再点击“提取”。应用不保存教务密码。学校系统页面尚未完成真实账号验证；无法提取时可使用文件导入。
 
-JPG 背景在手机上自动缩小、压缩，并按课表区域比例显示；无需事先裁剪图片。课表可调整背景淡化程度。
+CSV/XLSX 表头：`课程,教师,教室,星期,开始节,结束节,周次`。周次示例：`1-16`、`1-16单`、`2-16双`、`1,3,5`。
 
-## 文件模板
+## 更新
 
-在“导入”中下载 CSV 模板。Excel `.xlsx` 文件使用同样的表头：`课程,教师,教室,星期,开始节,结束节,周次`。每行是一个上课时段；同名、同教师、同教室的时段合并为一门课。周次支持 `1-16`、`1-16单`、`2-16双`、`1,3,5`。
+联网打开应用时检查 [GitHub Releases](https://github.com/Mr-Y-LYB/classgrid-android/releases)。确认更新后，应用下载并校验 APK，安卓系统会请求安装确认。下载失败时可重试，或使用窗口里的浏览器下载入口。
 
 ## 构建
 
-需要 JDK 17、Android SDK 35。使用 Android Studio 打开项目，或运行：
+需要 JDK 17 和 Android SDK 35。用 Android Studio 打开项目，或运行：
 
 ```powershell
 .\gradlew.bat assembleDebug
 node .\tests\core.test.js
 ```
 
-发布版需将本地签名文件放在 `.signing/classgrid.jks`，并在 `.signing/signing.properties` 写入 `password=...`。这两个文件被 Git 忽略；后续版本必须使用同一个签名密钥。发布版构建命令为 `.\gradlew.bat assembleRelease`。
-
-## 设计参考
-
-周视图的信息排布参考用户提供的 WakeUp 课程表分析。中性色画布、浅色分隔线、圆角控件与紧凑间距参考 [VoltAgent/awesome-design-md 中的 Cal.com 分析](https://github.com/VoltAgent/awesome-design-md/tree/main/design-md/cal)。界面与图标均为 ClassGrid 自行实现。
-
-交互细节还参考了 [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) 和 [React Bits](https://github.com/DavidHDev/react-bits) 的移动端与轻量动效示例。参考仓库保存在本机 `references` 目录，不作为应用依赖。
-
-## 数据与更新
-
-课程数据只写入本机应用私有目录。JSON 备份与 ICS 文件仅在用户选择保存位置后导出。联网进入应用时自动检查本仓库的 GitHub Release；用户确认下载后，应用校验 APK 的 SHA-256、包名和签名，再由系统安装界面确认更新。更新弹窗会显示下载状态；应用内下载失败时可重试，或在浏览器下载 APK 后交由安卓系统安装。断网时课表照常使用。
-
+发布版使用 `.signing/classgrid.jks` 和 `.signing/signing.properties` 签名；签名文件不上传仓库。构建命令：`.\gradlew.bat assembleRelease`。

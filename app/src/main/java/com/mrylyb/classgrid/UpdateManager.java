@@ -14,12 +14,11 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.security.MessageDigest;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
@@ -30,7 +29,8 @@ final class UpdateManager {
     private static final String RAW_FEED = "https://raw.githubusercontent.com/" + REPO + "/main/update.json";
     private static final String CDN_FEED = "https://cdn.jsdelivr.net/gh/" + REPO + "@main/update.json";
     private static final String ASSET_PREFIX = "https://github.com/" + REPO + "/releases/download/";
-    private static final long MAX_APK_BYTES = 200L * 1024 * 1024;
+    private static final String RAW_APK = "https://raw.githubusercontent.com/" + REPO + "/main/downloads/";
+    private static final String CDN_APK = "https://cdn.jsdelivr.net/gh/" + REPO + "@main/downloads/";
     private final MainActivity activity;
     private final ExecutorService worker;
     private final BiConsumer<String, String> callback;
@@ -138,50 +138,21 @@ final class UpdateManager {
                 if (!dir.exists() && !dir.mkdirs()) throw new IllegalStateException("无法保存安装包");
                 temp = new File(dir, "classgrid-download.apk");
                 File apk = new File(dir, "classgrid-update.apk");
-                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(30000);
-                conn.setRequestProperty("User-Agent", "ClassGrid/" + currentVersion());
-                try {
-                    int code = conn.getResponseCode();
-                    if (code != 200 || !"https".equals(conn.getURL().getProtocol()))
-                        throw new IllegalStateException("下载源返回 HTTP " + code);
-                    long expectedSize = conn.getContentLengthLong();
-                    if (expectedSize > MAX_APK_BYTES) throw new IllegalStateException("安装包过大");
-                    progress("正在下载…");
-                    MessageDigest hash = MessageDigest.getInstance("SHA-256");
-                    long total = 0;
-                    int lastPercent = -1;
-                    try (InputStream in = conn.getInputStream(); FileOutputStream out = new FileOutputStream(temp)) {
-                        byte[] buffer = new byte[64 * 1024];
-                        int read;
-                        while ((read = in.read(buffer)) != -1) {
-                            total += read;
-                            if (total > MAX_APK_BYTES) throw new IllegalStateException("安装包过大");
-                            hash.update(buffer, 0, read);
-                            out.write(buffer, 0, read);
-                            if (expectedSize > 0) {
-                                int percent = (int) (total * 100 / expectedSize);
-                                if (percent >= lastPercent + 5) {
-                                    lastPercent = percent;
-                                    callback.accept("onUpdateProgress", "{\"percent\":" + percent + "}");
-                                }
-                            }
+                String assetName = "ClassGrid-v" + version + ".apk";
+                ApkDownloader.download(Arrays.asList(
+                    RAW_APK + assetName, CDN_APK + assetName, url), digest, temp,
+                    true, 12000, 20000, new ApkDownloader.Progress() {
+                        @Override public void status(String message) { progress(message); }
+                        @Override public void percent(int value) {
+                            callback.accept("onUpdateProgress", "{\"percent\":" + value + "}");
                         }
-                        out.getFD().sync();
-                    }
-                    if (total == 0 || (expectedSize > 0 && total != expectedSize))
-                        throw new IllegalStateException("下载不完整");
-                    progress("正在校验安装包…");
-                    String actual = hex(hash.digest());
-                    if (!actual.equalsIgnoreCase(digest.substring(7)))
-                        throw new IllegalStateException("安装包校验失败");
-                    verifyPackage(temp, version);
-                    if (apk.exists() && !apk.delete()) throw new IllegalStateException("无法替换旧安装包");
-                    if (!temp.renameTo(apk)) throw new IllegalStateException("无法保存安装包");
-                    File ready = apk;
-                    activity.runOnUiThread(() -> install(ready));
-                } finally { conn.disconnect(); }
+                    });
+                progress("正在校验安装包…");
+                verifyPackage(temp, version);
+                if (apk.exists() && !apk.delete()) throw new IllegalStateException("无法替换旧安装包");
+                if (!temp.renameTo(apk)) throw new IllegalStateException("无法保存安装包");
+                File ready = apk;
+                activity.runOnUiThread(() -> install(ready));
             } catch (Exception e) {
                 if (temp != null) temp.delete();
                 result(false, e.getMessage() == null ? "更新失败" : e.getMessage(), true);
@@ -342,10 +313,5 @@ final class UpdateManager {
         }
     }
 
-    private static String hex(byte[] bytes) {
-        StringBuilder result = new StringBuilder();
-        for (byte b : bytes) result.append(String.format(Locale.ROOT, "%02x", b & 0xff));
-        return result.toString();
-    }
 }
 

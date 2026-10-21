@@ -431,11 +431,12 @@
     if(action==='backup'){exportFile('ClassGrid-backup.json','application/json',JSON.stringify(state));return;}
     if(action==='ics'){exportFile('ClassGrid-'+table.name+'.ics','text/calendar',M.toIcs(table));return;}
     if(action==='check-update'){if(native)native.checkForUpdates(true);else toast('请在安卓应用中检查更新');return;}
-    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
+    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
     if(action==='download-update'){
       if(pendingUpdate&&native){
         const action=$('[data-action="download-update"]');if(action){action.disabled=true;action.textContent='正在下载';}
         const progress=$('#update-progress');if(progress){progress.classList.remove('error');progress.textContent='正在连接下载源…';}
+        const track=$('#update-track');if(track){track.hidden=false;track.classList.add('loading');$('#update-fill').style.width='35%';}
         try{native.downloadUpdate(pendingUpdate.url,pendingUpdate.digest,pendingUpdate.version);}
         catch(e){window.onUpdateDownload({ok:false,message:'无法开始下载，请在浏览器下载'});}
       }return;
@@ -518,16 +519,22 @@
       ${data.size?`<span class="muted">${Math.max(1,Math.round(data.size/1024))} KB</span>`:''}</div>
       <div class="update-title">更新内容</div><ul class="update-list">${releaseItems(data.notes).map(item=>`<li>${esc(item)}</li>`).join('')}</ul>
       <p class="muted update-progress" id="update-progress" aria-live="polite"></p>
+      <div class="update-track" id="update-track" hidden><div id="update-fill"></div></div>
       <button class="update-browser" data-action="browser-update">在浏览器下载 APK</button>`,
       '<button class="button fill" data-action="close">稍后</button><button class="button primary fill" data-action="download-update">更新</button>');
   };
   window.onUpdateProgress=data=>{
     const el=$('#update-progress');if(el){el.classList.remove('error');el.textContent=data.message||`下载中 ${data.percent}%`;}
+    const track=$('#update-track'),fill=$('#update-fill');
+    if(track&&fill&&Number.isFinite(data.percent)){
+      track.hidden=false;track.classList.remove('loading');fill.style.width=`${Math.max(0,Math.min(100,data.percent))}%`;
+    }else if(track&&data.message){track.hidden=false;track.classList.add('loading');if(fill)fill.style.width='35%';}
   };
   window.onUpdateDownload=data=>{
     const action=$('[data-action="download-update"]');
     if(!data.ok&&action){action.disabled=false;action.textContent='重试';}
     const progress=$('#update-progress');if(progress){progress.classList.toggle('error',!data.ok);progress.textContent=data.message||'更新结束';}
+    const track=$('#update-track');if(track){track.classList.remove('loading');track.hidden=!data.ok;}
     else toast(data.message||'更新结束');
   };
   let resizeTimer;

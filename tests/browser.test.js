@@ -154,6 +154,9 @@ async function main(){
   await evaluate('window.onUpdateCheck('+JSON.stringify(announcement)+')');
   await evaluate('document.querySelector("[data-action=download-update]").click()');
   assert.match(await evaluate('document.querySelector("#update-progress").textContent'),/正在连接/);
+  assert.equal(await evaluate('document.querySelector("#update-track").hidden'),false);
+  await evaluate('window.onUpdateProgress({percent:55})');
+  assert.equal(await evaluate('document.querySelector("#update-fill").style.width'),'55%');
   assert.equal(await evaluate('document.querySelector("[data-action=download-update]").disabled'),true);
   assert.equal(await evaluate('window.__updateCalls[0][0]'),'download');
   await evaluate('window.onUpdateDownload({ok:false,message:"网络超时"})');

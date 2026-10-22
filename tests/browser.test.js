@@ -163,7 +163,7 @@ async function main(){
   await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:tap.x,y:tap.y,button:'left',clickCount:1});
   assert.equal(await evaluate('document.querySelector(".sheet-head h2").textContent'),'导入课表');
   assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-action=import]")).transform'),'none');
-  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.Native={appVersion:()=>"1.2.5",androidVersion:()=>"15",loadState:()=>localStorage.getItem("classgrid-state")||"",saveState:(json)=>{localStorage.setItem("classgrid-state",json);return true},syncReminders:()=>{},downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u]),openFeedback:(...a)=>window.__updateCalls.push(["feedback",...a]),shareFeedback:(t)=>window.__updateCalls.push(["share",t]),readBackgroundChunk:(token,offset,length)=>token==="test"?window.__pendingBackground.slice(offset,offset+length):"",clearPendingBackground:()=>{window.__pendingBackground=null}};'});
+  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.Native={appVersion:()=>"1.2.6",androidVersion:()=>"15",loadState:()=>localStorage.getItem("classgrid-state")||"",saveState:(json)=>{localStorage.setItem("classgrid-state",json);return true},syncReminders:()=>{},downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u]),openFeedback:(...a)=>window.__updateCalls.push(["feedback",...a]),shareFeedback:(t)=>window.__updateCalls.push(["share",t]),readBackgroundChunk:(token,offset,length)=>token==="test"?window.__pendingBackground.slice(offset,offset+length):"",clearPendingBackground:()=>{window.__pendingBackground=null}};'});
   await command('Page.navigate',{url:'file:///'+path.join(root,'app/src/main/assets/index.html').replace(/\\/g,'/')});
   await wait(700);
   await evaluate('window.onUpdateCheck('+JSON.stringify(announcement)+')');
@@ -202,15 +202,20 @@ async function main(){
   assert.equal(added.color,'#204340');
   assert.match(await evaluate('Array.from(document.querySelectorAll(".course-card")).filter(e=>e.textContent.includes("双教室课程")).map(e=>e.textContent).join("|")'),/A106.*B403/);
   await evaluate('document.querySelector("[data-action=settings]").click()');
-  assert.match(await evaluate('document.querySelector(".version").textContent'),/v1\.2\.5/);
+  assert.match(await evaluate('document.querySelector(".version").textContent'),/v1\.2\.6/);
   await evaluate('document.querySelector("[data-action=feedback]").click()');
   await evaluate('document.querySelector("#feedback-text").value="切换周次后颜色异常";document.querySelector("[data-action=feedback-github]").click()');
   assert.equal(await evaluate('window.__updateCalls.at(-1)[0]'),'feedback');
-  assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/ClassGrid v1\.2\.5/);
+  assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/ClassGrid v1\.2\.6/);
   assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/Android 15/);
   assert.doesNotMatch(await evaluate('window.__updateCalls.at(-1)[2]'),/A106|B403/);
   await evaluate('document.querySelector("[data-action=feedback-share]").click()');
   assert.equal(await evaluate('window.__updateCalls.at(-1)[0]'),'share');
+  await evaluate('(()=>{const state=JSON.parse(localStorage.getItem("classgrid-state")),table=state.tables.find(t=>t.id===state.activeId);table.courses.forEach((course,i)=>course.color=i%2?"#FFFFFF":"#F4772A");localStorage.setItem("classgrid-state",JSON.stringify(state))})()');
+  await command('Page.reload');await wait(700);
+  const cardColors=await evaluate('Array.from(document.querySelectorAll(".course-card:not(.change-marker)")).map(card=>({color:getComputedStyle(card).color,shadow:getComputedStyle(card.querySelector("strong")).textShadow}))');
+  assert.ok(cardColors.length>0);
+  assert.ok(cardColors.every(card=>card.color==='rgb(255, 255, 255)'&&card.shadow!=='none'),`Course card text colors differ: ${JSON.stringify(cardColors)}`);
   assert.deepEqual(errors,[]);
   console.log('ClassGrid browser test passed');
 }

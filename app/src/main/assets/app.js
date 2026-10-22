@@ -12,7 +12,7 @@
   };
   const navIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'1.2.5';
+  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'1.2.6';
   const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
   let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:true,exact:true};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
@@ -98,7 +98,7 @@
       const count=overlapping.length,index=overlapping.findIndex(x=>x.id===entry.id);
       const marker=!!entry.exceptionId;
       const button=document.createElement('button');button.className='course-card'+(marker?' change-marker':'')+(conflicts.has(entry.id)?' conflict':'')+(entry.moved?' moved':'');
-      if(!marker){button.style.background=entry.color;button.style.color=M.contrastText(entry.color);}
+      if(!marker){button.style.background=entry.color;button.style.color='#fff';}
       else button.style.setProperty('--course-color',entry.color);
       button.style.top=((entry.start-1)*72+3)+'px';
       button.style.height=((entry.end-entry.start+1)*72-6)+'px';
@@ -177,7 +177,7 @@
     const hex=hsvToHex(pickerHsv);
     field.style.setProperty('--picker-hue',`hsl(${Math.round(pickerHsv.h)} 100% 50%)`);
     $('#color-point').style.left=`${pickerHsv.s*100}%`;$('#color-point').style.top=`${(1-pickerHsv.v)*100}%`;
-    $('#color-preview').style.background=hex;$('#color-preview').style.color=M.contrastText(hex);
+    $('#color-preview').style.background=hex;$('#color-preview').style.color='#fff';
     $('#color-hue').value=Math.round(pickerHsv.h);
     if(syncHex)$('#color-hex').value=hex;
   }
@@ -527,7 +527,7 @@
       else toast('请在安卓应用中分享');
       return;
     }
-    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.5</strong><small>2026-10-22</small></div></div><p>长课程名按卡片空间换行显示，不再固定截成四行。</p><div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
+    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.6</strong><small>2026-10-22</small></div></div><p>课程卡片统一使用白色文字。</p><div class="listrow"><div><strong>v1.2.5</strong><small>2026-10-22</small></div></div><p>长课程名按卡片空间换行显示，不再固定截成四行。</p><div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
     if(action==='download-update'){
       if(pendingUpdate&&native){
         const action=$('[data-action="download-update"]');if(action){action.disabled=true;action.textContent='正在下载';}

@@ -32,3 +32,5 @@ node .\tests\core.test.js
 ```
 
 发布版使用 `.signing/classgrid.jks` 和 `.signing/signing.properties` 签名；签名文件不上传仓库。构建命令：`.\gradlew.bat assembleRelease`。
+
+应用内“更新说明”使用 `CHANGELOG.md` 的内容。修改后运行 `node scripts/sync-changelog.cjs`；构建时会检查两者一致。

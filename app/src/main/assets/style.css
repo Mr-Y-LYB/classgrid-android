@@ -129,3 +129,5 @@ button{-webkit-tap-highlight-color:transparent}.button,.iconbtn,.navbtn,.todaybt
 :root[data-theme=dark] #toast{background:#385868}
 :root .shell,:root .top,:root .weekday-row,:root .grid-scroll,:root .period-label,:root .slot,:root .bottom,:root .sheet,:root .button,:root .field input,:root .field select,:root .field textarea,:root .panel-card,:root .import-source,:root .import-other{transition:background-color .2s ease,color .2s ease,border-color .2s ease}
 @media(prefers-reduced-motion:reduce){:root .shell,:root .top,:root .weekday-row,:root .grid-scroll,:root .period-label,:root .slot,:root .bottom,:root .sheet,:root .button,:root .field input,:root .field select,:root .field textarea,:root .panel-card,:root .import-source,:root .import-other{transition:none}}
+
+.changelog-entry{padding-bottom:12px}.changelog-entry .listrow{padding:10px 0 7px}.changelog-entry .update-list{margin:8px 0 0;font-size:12px;gap:6px;color:inherit}

@@ -11,7 +11,7 @@ android {
         applicationId 'com.mrylyb.classgrid'
         minSdk 26
         targetSdk 34
-        versionCode 12
+        versionCode 13
         versionName '2.0.0'
     }
     signingConfigs {
@@ -38,5 +38,22 @@ android {
 
 dependencies {
     implementation 'androidx.core:core:1.9.0'
+}
+
+def changelogSource = rootProject.file('CHANGELOG.md')
+def changelogAsset = file('src/main/assets/changelog.js')
+def verifyChangelog = tasks.register('verifyChangelog') {
+    inputs.file(changelogSource)
+    inputs.file(changelogAsset)
+    doLast {
+        def prefix = 'window.CG_CHANGELOG='
+        def payload = changelogAsset.getText('UTF-8').trim()
+        if (!payload.startsWith(prefix) || !payload.endsWith(';')
+            || new groovy.json.JsonSlurper().parseText(payload.substring(prefix.length(), payload.length() - 1)) != changelogSource.getText('UTF-8'))
+            throw new GradleException('应用内更新说明与 CHANGELOG.md 不一致，请同步 changelog.js')
+    }
+}
+tasks.matching { it.name == 'mergeDebugAssets' || it.name == 'mergeReleaseAssets' }.configureEach {
+    dependsOn verifyChangelog
 }
 

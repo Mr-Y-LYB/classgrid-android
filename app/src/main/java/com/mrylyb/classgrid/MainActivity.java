@@ -118,8 +118,10 @@ public class MainActivity extends Activity {
             updater.resumePendingInstall();
             requestAutoUpdate();
         }
-        worker.execute(() -> ReminderScheduler.schedule(this));
-        if (pageReady) callback("onReminderStatus", ReminderScheduler.status(this).toString());
+        worker.execute(() -> {
+            ReminderScheduler.schedule(this);
+            if (pageReady) callback("onReminderStatus", ReminderScheduler.status(this).toString());
+        });
     }
 
     @Override protected void onPause() {
@@ -138,6 +140,15 @@ public class MainActivity extends Activity {
     }
 
     public class Bridge {
+        @JavascriptInterface public void setTheme(boolean dark) {
+            runOnUiThread(() -> {
+                getWindow().setStatusBarColor(dark ? Color.rgb(16, 28, 41) : Color.rgb(247, 249, 251));
+                getWindow().setNavigationBarColor(dark ? Color.rgb(16, 28, 41) : Color.rgb(247, 249, 251));
+                getWindow().getDecorView().setSystemUiVisibility(dark ? 0 :
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+            });
+        }
         @JavascriptInterface public String appVersion() {
             try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
             catch (Exception e) { return ""; }
@@ -234,6 +245,9 @@ public class MainActivity extends Activity {
                 ReminderScheduler.saveAndSchedule(MainActivity.this, eventsJson);
                 callback("onReminderStatus", ReminderScheduler.status(MainActivity.this).toString());
             });
+        }
+        @JavascriptInterface public void testReminder() {
+            worker.execute(() -> callback("onReminderTest", ReminderScheduler.scheduleTest(MainActivity.this).toString()));
         }
         @JavascriptInterface public void requestReminderPermission() {
             runOnUiThread(() -> {

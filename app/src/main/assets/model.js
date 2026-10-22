@@ -4,6 +4,27 @@
   const COLORS=['#477F8B','#5C70A9','#B77B5B','#658B70','#9475A0','#B08E49','#527A9C','#A26875',
     '#277F86','#36688E','#6553A5','#9A528E','#A45270','#A36343','#94751D','#498049',
     '#267466','#3D5D9C','#795A9B','#9A5262','#8B6B41','#526D42','#356F7C','#715E83'];
+  function nextCourseColor(existing=[],name='',teacher=''){
+    const same=existing.find(c=>c.name?.trim()===name.trim()&&(c.teacher||'').trim()===teacher.trim());
+    if(same?.color)return same.color;
+    const used=new Set(existing.map(c=>String(c.color||'').toUpperCase()));
+    const preset=COLORS.find(c=>!used.has(c.toUpperCase()));
+    if(preset)return preset;
+    for(let i=0;i<720;i++){
+      const h=(25+i*137.508)%360,s=.48,l=.39,a=s*Math.min(l,1-l);
+      const channel=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0');};
+      const color=('#'+channel(0)+channel(8)+channel(4)).toUpperCase();
+      if(!used.has(color))return color;
+    }
+    throw Error('无法分配课程颜色');
+  }
+  function assignCourseColors(courses,existing=[]){
+    const assigned=[...existing];
+    return courses.map(course=>{
+      const colored={...course,color:nextCourseColor(assigned,course.name,course.teacher||'')};
+      assigned.push(colored);return colored;
+    });
+  }
   const DEFAULT_PERIODS=[['08:00','08:45'],['08:55','09:40'],['10:00','10:45'],['10:55','11:40'],['13:30','14:15'],['14:25','15:10'],['15:30','16:15'],['16:25','17:10'],['18:30','19:15'],['19:25','20:10'],['20:20','21:05'],['21:15','22:00']];
   const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
   const pad=n=>String(n).padStart(2,'0');
@@ -13,7 +34,7 @@
   function weekOf(table,date){return Math.floor((new Date(`${date}T12:00:00`)-new Date(`${table.startDate}T12:00:00`))/604800000)+1;}
   function dateFor(table,week,day){return dateAdd(table.startDate,(week-1)*7+day-1);}
   function defaultTable(){return {id:uid(),name:'我的课表',startDate:monday(todayDate()),totalWeeks:20,periods:DEFAULT_PERIODS.map(x=>({start:x[0],end:x[1]})),courses:[],exceptions:[],background:'',backgroundFade:35};}
-  function defaultState(){const table=defaultTable();return {schema:SCHEMA,activeId:table.id,tables:[table],settings:{remindersEnabled:false,reminderMinutes:15}};}
+  function defaultState(){const table=defaultTable();return {schema:SCHEMA,activeId:table.id,tables:[table],settings:{remindersEnabled:false,reminderMinutes:15,theme:'light'}};}
   function parseWeeks(input,maxWeeks=30){
     const result=new Set();let source=String(input||'').trim();
     if(!source)throw Error('请填写周次');
@@ -85,6 +106,7 @@
     }
     if(!raw.tables.some(t=>t.id===raw.activeId))raw.activeId=raw.tables[0]?.id||null;
     if(!raw.settings)raw.settings={remindersEnabled:false,reminderMinutes:15};
+    if(raw.settings.theme!=='dark')raw.settings.theme='light';
     return raw;
   }
   function activeTable(state){return state.tables.find(t=>t.id===state.activeId)||state.tables[0];}
@@ -167,6 +189,6 @@
     const events=table?allOccurrences(table).map(e=>({id:e.id,at:eventTime(table,e)?.start||0,title:e.name,room:e.room})).filter(e=>e.at):[];
     return {enabled:!!state.settings.remindersEnabled,minutes:Number(state.settings.reminderMinutes??15),events};
   }
-  return {SCHEMA,COLORS,DEFAULT_PERIODS,uid,todayDate,monday,dateAdd,weekOf,dateFor,defaultTable,defaultState,parseWeeks,selectWeeks,weekPattern,weeksLabel,contrastText,
+  return {SCHEMA,COLORS,nextCourseColor,assignCourseColors,DEFAULT_PERIODS,uid,todayDate,monday,dateAdd,weekOf,dateFor,defaultTable,defaultState,parseWeeks,selectWeeks,weekPattern,weeksLabel,contrastText,
     validateState,activeTable,occurrences,changeMarkers,conflicts,allOccurrences,eventTime,toIcs,reminderPayload};
 });

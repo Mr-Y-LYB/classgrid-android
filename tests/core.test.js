@@ -3,8 +3,13 @@ const M=require('../app/src/main/assets/model.js');
 const I=require('../app/src/main/assets/import.js');
 
 const t=M.defaultTable();
+assert.equal(M.defaultState().settings.theme,'light');
 t.startDate='2026-09-21';
 t.totalWeeks=16;
+const autoCourses=M.assignCourseColors(Array.from({length:30},(_,i)=>({name:`课程${i}`,teacher:''})));
+assert.equal(new Set(autoCourses.map(c=>c.color.toUpperCase())).size,30);
+assert.equal(M.nextCourseColor([{name:'高等数学',teacher:'张老师',color:'#123456'}],'高等数学','张老师'),'#123456');
+assert.notEqual(M.nextCourseColor([{name:'高等数学',teacher:'张老师',color:M.COLORS[0]}],'物理',''),M.COLORS[0]);
 assert.deepEqual(M.parseWeeks('1-8单,10,12',16),[1,3,5,7,10,12]);
 assert.deepEqual(M.parseWeeks('2-8双',16),[2,4,6,8]);
 assert.deepEqual(M.parseWeeks('单周',6),[1,3,5]);
@@ -24,6 +29,7 @@ const course={id:'c1',name:'电力系统分析基础',teacher:'张老师',room:'
 t.courses=[course];
 assert.equal(M.occurrences(t,1).length,1);
 assert.equal(M.occurrences(t,1)[0].room,'403');
+assert.equal(M.eventTime(t,M.occurrences(t,1)[0]).start,Date.parse('2026-09-21T08:00:00+08:00'));
 assert.equal(M.occurrences(t,2).length,0);
 assert.equal(M.occurrences(t,3)[0].date,'2026-10-05');
 t.exceptions.push({id:'x1',type:'cancel',courseId:'c1',sessionId:'s1',sourceDate:'2026-09-21'});
@@ -46,6 +52,7 @@ assert.equal(M.occurrences({...t,exceptions:[]},1).length,1);
 const state={schema:1,activeId:t.id,tables:[t],settings:{remindersEnabled:true,reminderMinutes:15}};
 const restored=M.validateState(JSON.parse(JSON.stringify(state)));
 assert.equal(restored.tables.length,1);
+assert.equal(restored.settings.theme,'light');
 assert.equal(M.changeMarkers(restored.tables[0],3)[0].targetDate,'2026-10-06');
 const withBackground=JSON.parse(JSON.stringify(state));
 withBackground.tables[0].background='data:image/jpeg;base64,/9j/2Q==';
@@ -97,6 +104,7 @@ const portal={tables:[{rows:[
 ]}]};
 const parsed=I.parsePortal(portal,16);
 assert.equal(parsed.courses.length,3);
+assert.equal(new Set(parsed.courses.map(c=>c.color)).size,3);
 const sessions=parsed.courses.flatMap(c=>c.sessions.map(s=>({name:c.name,...s})));
 assert.deepEqual(sessions.find(s=>s.name==='电力系统分析基础').weeks,[1,3,5,7,9,11]);
 assert.equal(sessions.find(s=>s.name==='电力电子技术').start,2);

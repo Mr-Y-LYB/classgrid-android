@@ -17,7 +17,9 @@ import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Calendar;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 final class ReminderScheduler {
@@ -31,10 +33,20 @@ final class ReminderScheduler {
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
         android.app.NotificationManager manager = (android.app.NotificationManager)
             context.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (manager != null) notifications = notifications && manager.areNotificationsEnabled();
+        if (manager != null) {
+            notifications = notifications && manager.areNotificationsEnabled();
+            android.app.NotificationChannel channel = manager.getNotificationChannel("classgrid_courses");
+            if (channel != null) notifications = notifications &&
+                channel.getImportance() != android.app.NotificationManager.IMPORTANCE_NONE;
+        }
         AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        boolean exact = Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms();
-        try { result.put("notifications", notifications).put("exact", exact); } catch (Exception ignored) {}
+        boolean exact = alarms != null && (Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms());
+        SharedPreferences prefs = context.getSharedPreferences("alarms", Context.MODE_PRIVATE);
+        try { result.put("notifications", notifications).put("exact", exact)
+            .put("enabled", prefs.getBoolean("enabled", false))
+            .put("scheduled", prefs.getInt("scheduled", 0))
+            .put("nextAt", prefs.getLong("nextAt", 0L))
+            .put("error", prefs.getString("error", "")); } catch (Exception ignored) {}
         return result;
     }
 
@@ -54,41 +66,63 @@ final class ReminderScheduler {
                 temp.delete();
             }
             schedule(context);
-        } catch (Exception ignored) {}
+        } catch (Exception error) {
+            context.getSharedPreferences("alarms", Context.MODE_PRIVATE).edit()
+                .putString("error", "提醒数据保存失败").apply();
+        }
     }
 
     static void schedule(Context context) {
         AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarms == null) return;
         SharedPreferences prefs = context.getSharedPreferences("alarms", Context.MODE_PRIVATE);
-        Set<String> oldIds = new HashSet<>(prefs.getStringSet("ids", new HashSet<>()));
-        for (String id : oldIds) alarms.cancel(eventIntent(context, id, "", ""));
-        Set<String> currentIds = new HashSet<>();
+        List<ReminderPlan.Event> raw = new ArrayList<>();
+        boolean enabled = false;
         File file = new File(context.getFilesDir(), "reminders.json");
         try {
             if (file.exists()) {
                 JSONObject data = new JSONObject(new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8));
-                if (data.optBoolean("enabled", false)) {
-                    long now = System.currentTimeMillis();
-                    int minutes = Math.max(0, Math.min(240, data.optInt("minutes", 15)));
-                    JSONArray events = data.optJSONArray("events");
-                    if (events != null) for (int i = 0; i < events.length() && currentIds.size() < 300; i++) {
-                        JSONObject event = events.optJSONObject(i);
-                        if (event == null) continue;
-                        String id = event.optString("id", "");
-                        long trigger = event.optLong("at", 0) - minutes * 60000L;
-                        if (id.isEmpty() || trigger <= now || trigger > now + WINDOW) continue;
-                        PendingIntent intent = eventIntent(context, id,
-                            event.optString("title", "课程即将开始"), event.optString("room", ""));
-                        if (Build.VERSION.SDK_INT >= 31 && alarms.canScheduleExactAlarms())
-                            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, intent);
-                        else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, intent);
-                        currentIds.add(id);
-                    }
+                enabled = data.optBoolean("enabled", false);
+                int minutes = data.optInt("minutes", 15);
+                JSONArray events = data.optJSONArray("events");
+                if (enabled && events != null) for (int i = 0; i < events.length(); i++) {
+                    JSONObject event = events.optJSONObject(i);
+                    if (event == null) continue;
+                    raw.add(new ReminderPlan.Event(event.optString("id", ""), event.optLong("at", 0), 0,
+                        event.optString("title", "课程即将开始"), event.optString("room", "")));
                 }
+                raw = ReminderPlan.upcoming(raw, System.currentTimeMillis(), minutes, WINDOW, 300);
             }
-        } catch (Exception ignored) {}
-        prefs.edit().putStringSet("ids", currentIds).apply();
+        } catch (Exception error) {
+            prefs.edit().putString("error", "提醒数据读取失败").apply();
+            return;
+        }
+        Set<String> oldIds = new HashSet<>(prefs.getStringSet("ids", new HashSet<>()));
+        for (String id : oldIds) alarms.cancel(eventIntent(context, id, "", ""));
+        Set<String> currentIds = new HashSet<>();
+        boolean exact = Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms();
+        long nextAt = 0;
+        String error = "";
+        for (ReminderPlan.Event event : raw) {
+            try {
+                PendingIntent intent = eventIntent(context, event.id, event.title, event.room);
+                if (exact) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, event.triggerAt, intent);
+                else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, event.triggerAt, intent);
+                currentIds.add(event.id);
+                if (nextAt == 0 || event.triggerAt < nextAt) nextAt = event.triggerAt;
+            } catch (SecurityException denied) {
+                exact = false;
+                try {
+                    alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, event.triggerAt,
+                        eventIntent(context, event.id, event.title, event.room));
+                    currentIds.add(event.id);
+                    if (nextAt == 0 || event.triggerAt < nextAt) nextAt = event.triggerAt;
+                } catch (RuntimeException failed) { error = "部分提醒设置失败"; }
+            } catch (RuntimeException failed) { error = "部分提醒设置失败"; }
+        }
+        prefs.edit().putStringSet("ids", currentIds).putBoolean("enabled", enabled)
+            .putInt("scheduled", currentIds.size()).putLong("nextAt", nextAt)
+            .putString("error", error).apply();
         PendingIntent refresh = refreshIntent(context);
         alarms.cancel(refresh);
         Calendar next = Calendar.getInstance();
@@ -96,7 +130,28 @@ final class ReminderScheduler {
         next.set(Calendar.HOUR_OF_DAY, 3);
         next.set(Calendar.MINUTE, 0);
         next.set(Calendar.SECOND, 0);
-        alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.getTimeInMillis(), refresh);
+        try { alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.getTimeInMillis(), refresh); }
+        catch (RuntimeException failed) { prefs.edit().putString("error", "提醒刷新设置失败").apply(); }
+    }
+
+    static JSONObject scheduleTest(Context context) {
+        JSONObject result = new JSONObject();
+        try {
+            if (!status(context).optBoolean("notifications", false))
+                throw new IllegalStateException("请先开启通知权限");
+            AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+            if (alarms == null) throw new IllegalStateException("无法使用系统提醒");
+            long at = System.currentTimeMillis() + 60_000L;
+            boolean exact = Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms();
+            PendingIntent test = eventIntent(context, "test-reminder", "ClassGrid 测试提醒", "测试通知已送达");
+            if (exact) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, test);
+            else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, test);
+            result.put("ok", true).put("exact", exact).put("at", at);
+        } catch (Exception error) {
+            try { result.put("ok", false).put("error", error.getMessage() == null ? "测试提醒设置失败" : error.getMessage()); }
+            catch (Exception ignored) {}
+        }
+        return result;
     }
 
     private static PendingIntent eventIntent(Context context, String id, String title, String room) {

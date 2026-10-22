@@ -11,10 +11,24 @@
     settings:'<path d="M4 7h8m4 0h4M4 17h4m4 0h8"/><circle cx="14" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'
   };
   const navIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
+  const panelIcons={
+    timetable:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-13 4h3m-3 3h3m4-3h2"/>',
+    alarm:'<circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2M4 3 2 6m16-3 2 3M7 20l-2 2m12-2 2 2"/>',
+    data:'<path d="M4 8h16v12H4zM7 4h10v4m-7 5 2 2 2-2"/>',
+    app:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 10v6m0-9v.5"/>',
+    school:'<path d="M3 10 12 4l9 6v10H3V10Zm3 3h12m-9 0v7m6-7v7"/>',
+    file:'<path d="M6 3h8l4 4v14H6zM14 3v5h4M9 13h6m-6 4h6"/>',
+    globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-5 4-5 14 0 18m0-18c5 4 5 14 0 18"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    update:'<path d="M20 7v5h-5M4 17v-5h5M5 9a8 8 0 0 1 13-2l2 5M4 12l2 5a8 8 0 0 0 13-2"/>',
+    message:'<path d="M4 5h16v12H8l-4 3zM8 10h8m-8 3h5"/>'
+  };
+  const panelIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${panelIcons[name]}</svg>`;
+  const themeIcon=dark=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${dark?'<path d="M20.5 14.1A8.5 8.5 0 0 1 9.9 3.5 8.5 8.5 0 1 0 20.5 14.1Z"/>':'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'}</svg>`;
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'1.2.8';
+  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'2.0.0';
   const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
-  let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:true,exact:true};
+  let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:false,exact:false,scheduled:0,nextAt:0,error:''};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
   catch(e){state=M.defaultState();}
   let table=M.activeTable(state);week=Math.max(1,Math.min(table.totalWeeks,M.weekOf(table,M.todayDate())));
@@ -28,10 +42,17 @@
     const items=bullets.length?bullets:lines.flatMap(x=>clean(x).split(/[；;]/).map(y=>y.trim()).filter(Boolean));
     return (items.length?items:['新版本已发布']).slice(0,6).map(x=>x.slice(0,140));
   }
-  function save(){
+  function applyTheme(){
+    const dark=state.settings.theme==='dark';
+    document.documentElement.dataset.theme=dark?'dark':'light';
+    const meta=$('meta[name="theme-color"]');if(meta)meta.content=dark?'#101c29':'#f7f9fb';
+    const switcher=$('#theme-switch');if(switcher){switcher.innerHTML=themeIcon(dark);switcher.setAttribute('aria-label',dark?'切换到白天模式':'切换到夜间模式');switcher.title=dark?'白天模式':'夜间模式';}
+    if(native?.setTheme)native.setTheme(dark);
+  }
+  function save(syncReminders=true){
     try{
       M.validateState(state);const json=JSON.stringify(state);
-      if(native){if(!native.saveState(json))throw Error('保存失败');native.syncReminders(JSON.stringify(M.reminderPayload(state)));}
+      if(native){if(!native.saveState(json))throw Error('保存失败');if(syncReminders)native.syncReminders(JSON.stringify(M.reminderPayload(state)));}
       else localStorage.setItem('classgrid-state',json);
       return true;
     }catch(e){toast('保存失败：'+e.message);return false;}
@@ -54,9 +75,9 @@
           <button class="weekpill" data-action="week">第 ${week} 周</button>
           <button class="iconbtn" data-action="next" aria-label="下一周">›</button>
           <button class="todaybtn" data-action="today">本周</button></div></div>
-      <div class="weekday-row"><div></div>${days.map((d,i)=>`<div class="day ${dates[i]===today?'today':''}"><b>周${d}</b><span>${dateLabel(dates[i])}</span></div>`).join('')}</div>
+      <div class="weekday-row"><button id="theme-switch" class="theme-switch" data-action="theme" aria-label="切换主题">${themeIcon(state.settings.theme==='dark')}</button>${days.map((d,i)=>`<div class="day ${dates[i]===today?'today':''}"><b>周${d}</b><span>${dateLabel(dates[i])}</span></div>`).join('')}</div>
       <div class="grid-scroll"><div class="timetable" id="timetable"><img class="timetable-background" id="table-background" alt="" hidden><div class="timetable-background-veil" id="table-background-veil" hidden></div>${table.periods.map((p,n)=>
-        `<div class="period-label" style="height:72px;grid-row:${n+1};grid-column:1">${n+1}<small>${esc(p.start)}</small></div>`+
+        `<div class="period-label" style="height:72px;grid-row:${n+1};grid-column:1"><b>${n+1}</b><small>${esc(p.start)}</small><small class="period-end">${esc(p.end)}</small></div>`+
         days.map((_,i)=>`<div class="slot ${dates[i]===today?'todaycol':''}" style="height:72px;grid-row:${n+1};grid-column:${i+2}"></div>`).join('')).join('')}
         ${occurrences.length||markers.length?'':`<div class="empty-tip">本周暂无课程</div>`}</div></div>
       <nav class="bottom" aria-label="主导航"><button class="navbtn selected" data-action="home" aria-current="page">${navIcon('home')}<span>课表</span></button>
@@ -67,6 +88,7 @@
     positionCards(occurrences,markers,conflicts);
     let touch=null;const scroller=$('.grid-scroll');
     applyBackground(table);
+    applyTheme();
     scroller.addEventListener('touchstart',e=>{touch={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     scroller.addEventListener('touchend',e=>{if(!touch)return;const dx=e.changedTouches[0].clientX-touch.x,dy=e.changedTouches[0].clientY-touch.y;
       if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.35){week+=dx<0?1:-1;render();}touch=null;},{passive:true});
@@ -77,7 +99,7 @@
     const active=!!t.background;
     scroll.classList.toggle('has-background',active);
     image.hidden=veil.hidden=!active;
-    if(active){if(image.src!==t.background)image.src=t.background;veil.style.backgroundColor=`rgba(255,255,255,${fade/100})`;}
+    if(active){if(image.src!==t.background)image.src=t.background;veil.style.backgroundColor=state.settings.theme==='dark'?`rgba(9,18,28,${Math.min(.65,fade/100+.18)})`:`rgba(255,255,255,${fade/100})`;}
     else image.removeAttribute('src');
   }
   function applyBackgroundPreview(t,fade=Number(t.backgroundFade??35)){
@@ -91,7 +113,6 @@
   }
   function positionCards(events,markers,conflicts){
     const grid=$('#timetable');if(!grid)return;
-    const width=(grid.clientWidth-14-34)/7;
     const entries=[...events,...markers];
     for(const entry of entries){
       const overlapping=entries.filter(x=>x.day===entry.day&&x.start<=entry.end&&entry.start<=x.end);
@@ -102,8 +123,12 @@
       else button.style.setProperty('--course-color',entry.color);
       button.style.top=((entry.start-1)*72+3)+'px';
       button.style.height=((entry.end-entry.start+1)*72-6)+'px';
-      button.style.left=(7+34+(entry.day-1)*width+(width*index/count)+2)+'px';
-      button.style.width=(width/count-4)+'px';
+      // Use the grid width in CSS so cards stay inside their day column during a viewport change.
+      const start=(entry.day-1+index/count)/7;
+      const span=1/(7*count);
+      button.style.left=`calc(${start*100}% + ${43-48*start}px)`;
+      button.style.width=`calc(${span*100}% - ${48*span+4}px)`;
+      button.dataset.day=String(entry.day);
       button.dataset.action=marker?'marker':'detail';button.dataset.id=entry.id;
       const session=marker||entry.moved?null:table.courses.find(c=>c.id===entry.courseId)?.sessions.find(s=>s.id===entry.sessionId);
       const pattern=session?M.weekPattern(session.weeks).mode:'custom';
@@ -196,15 +221,26 @@
   function setCourseColor(hex){
     if(!/^#[0-9a-f]{6}$/i.test(hex))return;
     const choice=$('#color-choice');choice.dataset.color=hex.toUpperCase();
-    choice.querySelectorAll('.swatch').forEach(button=>button.classList.toggle('selected',button.dataset.color?.toUpperCase()===hex.toUpperCase()));
-    const custom=$('#custom-color');custom.style.background=hex;
-    custom.classList.toggle('selected',!M.COLORS.some(c=>c.toUpperCase()===hex.toUpperCase()));
+    $('#current-color').style.background=hex;
+    choice.setAttribute('aria-label',`选择课程颜色，当前 ${hex.toUpperCase()}`);
+  }
+  let editorScrollTop=0,editorActions='';
+  function closeColorPicker(){
+    $('#color-picker').hidden=true;$('#course-form').hidden=false;
+    $('.sheet-head h2').textContent=$('#course-form').dataset.id?'编辑课程':'添加课程';
+    const back=$('.sheet-head .iconbtn');back.textContent='×';back.dataset.action='close';
+    $('.sheet-actions').innerHTML=editorActions;
+    $('.sheet-body').scrollTop=editorScrollTop;
   }
   function openColorPicker(){
     pickerHsv=hexToHsv($('#color-choice').dataset.color);
-    $('#color-picker').hidden=false;updatePicker();
-    const body=$('.sheet-body'),delta=$('#color-picker').getBoundingClientRect().bottom-body.getBoundingClientRect().bottom+12;
-    if(delta>0)body.scrollBy({top:delta,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+    editorScrollTop=$('.sheet-body').scrollTop;
+    editorActions=$('.sheet-actions').innerHTML;
+    $('#course-form').hidden=true;$('#color-picker').hidden=false;
+    $('.sheet-head h2').textContent='选择颜色';
+    const back=$('.sheet-head .iconbtn');back.textContent='‹';back.dataset.action='color-cancel';
+    $('.sheet-actions').innerHTML='<button class="button fill" data-action="color-cancel">返回</button><button class="button primary fill" data-action="color-apply">选用颜色</button>';
+    $('.sheet-body').scrollTop=0;$('#color-error').textContent='';updatePicker();
   }
   function pickColorAt(x,y){
     const rect=$('#color-field').getBoundingClientRect();
@@ -214,21 +250,19 @@
   }
   function openEditor(courseId){
     const course=table.courses.find(x=>x.id===courseId);
-    const chosenColor=course?.color||M.COLORS[0],preset=M.COLORS.some(c=>c.toUpperCase()===chosenColor.toUpperCase());
+    const chosenColor=course?.color||M.nextCourseColor(table.courses);
     modal(course?'编辑课程':'添加课程',`<div id="course-form" data-id="${course?esc(course.id):''}">
-      ${field('课程名称',`<input id="c-name" maxlength="100" value="${esc(course?.name||'')}" placeholder="课程名称">`)}
+      <div class="course-name-row">${field('课程名称',`<input id="c-name" maxlength="100" value="${esc(course?.name||'')}" placeholder="课程名称">`)}
+      <button type="button" class="color-ring" id="color-choice" data-color="${esc(chosenColor)}" data-auto="${course?'false':'true'}" data-action="color-custom" aria-label="选择课程颜色，当前 ${esc(chosenColor.toUpperCase())}" title="自定义颜色"><span id="current-color" style="background:${esc(chosenColor)}"></span></button></div>
       ${field('教师',`<input id="c-teacher" maxlength="60" value="${esc(course?.teacher||'')}">`)}
-      <div class="field"><label>颜色</label><div class="choice" id="color-choice" data-color="${esc(chosenColor)}">${M.COLORS.map(c=>`<button type="button" class="swatch ${c.toUpperCase()===chosenColor.toUpperCase()?'selected':''}" style="background:${c}" data-action="color" data-color="${c}" aria-label="选择 ${c}"></button>`).join('')}
-      <button type="button" class="swatch custom-color ${preset?'':'selected'}" id="custom-color" style="background:${esc(chosenColor)}" data-action="color-custom" aria-label="自定义颜色">＋</button></div></div>
-      <div class="color-picker" id="color-picker" hidden><div class="color-picker-title">自定义颜色</div>
-      <div class="color-picker-controls"><div class="color-field" id="color-field"><span id="color-point"></span></div><input id="color-hue" type="range" min="0" max="359" value="180" aria-label="色相"></div>
-      <div class="color-picker-value"><div class="color-sample" id="color-preview">Aa</div>${field('HEX',`<input id="color-hex" maxlength="7" inputmode="text" value="${esc(chosenColor)}" aria-label="十六进制颜色">`)}</div>
-      <p class="error" id="color-error"></p>
-      <div class="row"><button type="button" class="button fill" data-action="color-cancel">收起</button><button type="button" class="button primary fill" data-action="color-apply">选用颜色</button></div></div>
       <div class="section-title">上课时间</div><div id="sessions">${(course?.sessions.length?course.sessions:[{}]).map((s,i)=>sessionMarkup(s,i,course?.room||'')).join('')}</div>
       ${course&&table.exceptions.some(x=>x.courseId===course.id)?`<div class="section-title">临时变更</div>${table.exceptions.filter(x=>x.courseId===course.id).map(x=>
         `<div class="listrow"><small>${esc(x.sourceDate)} · ${x.type==='cancel'?'停课':`调至 ${esc(x.targetDate)}`}</small><button class="button small" data-action="remove-exception" data-id="${esc(x.id)}">恢复</button></div>`).join('')}`:''}
-      <button class="button small" data-action="add-session">＋ 添加时段</button><p class="error" id="editor-error"></p></div>`,
+      <button class="button small" data-action="add-session">＋ 添加时段</button><p class="error" id="editor-error"></p></div>
+      <div class="color-picker color-picker-page" id="color-picker" hidden><div class="color-picker-title">拖动选色，或输入 HEX 色值</div>
+      <div class="color-picker-controls"><div class="color-field" id="color-field"><span id="color-point"></span></div><input id="color-hue" type="range" min="0" max="359" value="180" aria-label="色相"></div>
+      <div class="color-picker-value"><div class="color-sample" id="color-preview">Aa</div>${field('HEX',`<input id="color-hex" maxlength="7" inputmode="text" value="${esc(chosenColor)}" aria-label="十六进制颜色">`)}</div>
+      <p class="error" id="color-error"></p></div>`,
       `${course?'<button class="button danger" data-action="delete-course">删除</button>':''}<button class="button fill" data-action="close">取消</button><button class="button primary fill" id="save-course" data-action="save-course">保存</button>`);
   }
   function readSessions(){
@@ -299,13 +333,16 @@
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-move">保存</button>');
   }
   function openImport(){
-    modal('导入课表',`<div class="section-title">教务系统</div><div class="note">在学校页面自行登录，进入“学生个人课表”后点“提取”。导入前可核对识别结果。</div>
-      <button class="button primary fill" data-action="school" style="width:100%">沈阳化工大学</button>
-      <div class="section-title">其他学校</div>${field('教务页面网址','<input id="portal-url" type="url" placeholder="https://...">')}
-      <button class="button" data-action="custom-portal">打开网页并提取表格</button>
-      <div class="section-title">文件</div><div class="row"><button class="button fill" data-action="pick-file">选择 CSV / XLSX / JSON</button>
-      <button class="button fill" data-action="template">下载模板</button></div>
-      <p class="muted">文件需使用模板列：课程、教师、教室、星期、开始节、结束节、周次。</p>`);
+    modal('导入课表',`<div class="import-page"><div class="import-sources">
+      <button type="button" class="import-source" data-action="school"><span class="source-icon">${panelIcon('school')}</span>
+      <span class="source-copy"><strong>沈阳化工大学</strong><small>登录教务系统后提取</small></span><span class="source-arrow">›</span></button>
+      <details class="import-other"><summary><span class="source-icon globe">${panelIcon('globe')}</span><span class="source-copy"><strong>其他学校网页</strong><small>输入教务系统网址</small></span><span class="source-arrow">⌄</span></summary>
+      <div class="import-other-body">${field('教务页面网址','<input id="portal-url" type="url" placeholder="https://..." inputmode="url">')}
+      <button class="button primary fill" data-action="custom-portal">打开网页</button></div></details>
+      <button type="button" class="import-source" data-action="pick-file"><span class="source-icon file">${panelIcon('file')}</span>
+      <span class="source-copy"><strong>本地文件</strong><small>CSV、Excel、JSON</small></span><span class="source-arrow">›</span></button></div>
+      <div class="import-help">进入教务课表后点击“提取”；文件导入会先预览内容。</div>
+      <button type="button" class="import-template" data-action="template">${panelIcon('file')}<span>下载 CSV 模板</span><span>›</span></button></div>`);
   }
   function previewImport(result,source){
     pendingImport={...result,source};
@@ -324,8 +361,9 @@
     const weeks=mode==='new'?Number($('#import-weeks').value):table.totalWeeks;
     if(!Number.isInteger(weeks)||weeks<1||weeks>30)throw Error('总周数应在 1-30 周内');
     const weekMode=$('#import-week-mode').value;
-    const courses=weekMode==='source'?pendingImport.courses:pendingImport.courses.map(c=>({...c,sessions:c.sessions.map(s=>
+    const scheduled=weekMode==='source'?pendingImport.courses:pendingImport.courses.map(c=>({...c,sessions:c.sessions.map(s=>
       ({...s,weeks:M.selectWeeks(weekMode,1,weeks,weeks)}))}));
+    const courses=M.assignCourseColors(scheduled,mode==='append'?table.courses:[]);
     if(courses.some(c=>c.sessions.some(s=>s.weeks.some(w=>w>weeks))))throw Error('课程周次超出课表总周数');
     return {mode,weeks,courses};
   }
@@ -343,21 +381,30 @@
     }catch(e){$('#import-error').textContent=e.message;$('#import-summary').hidden=true;$('#import-course-preview').innerHTML='';}
   }
   function openSettings(){
-    modal('设置',`${field('课表名称',`<input id="setting-name" value="${esc(table.name)}" maxlength="50">`)}
-      <div class="row">${field('第一周周一',`<input id="setting-date" type="date" value="${esc(table.startDate)}">`)}
+    modal('设置',`<div class="settings-page"><div class="settings-tabs" role="tablist" aria-label="设置分类">
+      <button type="button" role="tab" aria-selected="true" class="selected" data-action="settings-tab" data-tab="table">课表</button>
+      <button type="button" role="tab" aria-selected="false" data-action="settings-tab" data-tab="reminder">提醒</button>
+      <button type="button" role="tab" aria-selected="false" data-action="settings-tab" data-tab="data">数据与应用</button></div>
+      <section class="settings-panel" data-tab="table"><h3 class="panel-heading">${panelIcon('timetable')}<span>当前课表</span></h3>
+      <div class="panel-card">${field('课表名称',`<input id="setting-name" value="${esc(table.name)}" maxlength="50">`)}
+      <div class="row">${field('第一周周一',`<input id="setting-date" type="date" value="${table.startDate}">`)}
       ${field('总周数',`<input id="setting-weeks" type="number" min="1" max="30" value="${table.totalWeeks}">`)}</div>
-      <button class="button small" data-action="periods">节次时间</button>
-      <div class="section-title">提醒</div><div class="option-row"><span>课前提醒</span><input id="reminder-enabled" type="checkbox" ${state.settings.remindersEnabled?'checked':''}></div>
+      <button type="button" class="settings-link" data-action="periods">${panelIcon('clock')}<span>节次时间</span><span class="source-arrow">›</span></button></div></section>
+      <section class="settings-panel" data-tab="reminder" hidden><h3 class="panel-heading">${panelIcon('alarm')}<span>课前提醒</span></h3>
+      <div class="panel-card"><label class="reminder-switch"><span>开启提醒</span><input id="reminder-enabled" type="checkbox" ${state.settings.remindersEnabled?'checked':''}></label>
       ${field('提前分钟',`<input id="reminder-minutes" type="number" min="0" max="240" value="${state.settings.reminderMinutes??15}">`)}
-      <div class="muted" id="permission-status">${statusText()}</div>
-      <div class="row" style="margin-top:10px"><button class="button small" data-action="notification-permission">通知权限</button>
-      <button class="button small" data-action="exact-permission">精确提醒权限</button></div>
-      <div class="section-title">数据</div><div class="row"><button class="button fill" data-action="backup">导出 JSON</button>
-      <button class="button fill" data-action="ics">导出日历</button></div>
-      <div class="section-title">应用</div><div class="row"><button class="button fill" data-action="check-update">检查更新</button>
-      <button class="button fill" data-action="changelog">更新说明</button></div>
-      <button class="button feedback-entry" data-action="feedback">反馈问题</button>
-      <p class="version">ClassGrid v${esc(appVersion)}</p><p class="error" id="settings-error"></p>`,
+      <div class="permission-status" id="permission-status">${statusText()}</div>
+      <div class="permission-actions"><button class="button small" data-action="notification-permission">通知权限</button>
+      <button class="button small" data-action="exact-permission">精确提醒</button></div>
+      <button class="button small reminder-test" data-action="test-reminder">测试提醒（1 分钟后）</button><p class="muted reminder-test-status" id="reminder-test-status" role="status"></p></div></section>
+      <section class="settings-panel" data-tab="data" hidden><h3 class="panel-heading">${panelIcon('data')}<span>数据</span></h3>
+      <div class="settings-list"><button data-action="backup">${panelIcon('data')}<span>导出 JSON 备份</span><b>›</b></button>
+      <button data-action="ics">${panelIcon('timetable')}<span>导出日历</span><b>›</b></button></div>
+      <h3 class="panel-heading">${panelIcon('app')}<span>应用</span></h3>
+      <div class="settings-list"><button data-action="check-update">${panelIcon('update')}<span>检查更新</span><b>›</b></button>
+      <button data-action="changelog">${panelIcon('file')}<span>更新说明</span><b>›</b></button>
+      <button data-action="feedback">${panelIcon('message')}<span>反馈问题</span><b>›</b></button></div>
+      <p class="version">ClassGrid v${esc(appVersion)}</p></section><p class="error" id="settings-error" role="alert"></p></div>`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-settings">保存</button>');
   }
   function openFeedback(){
@@ -370,7 +417,17 @@
     if(!description){$('#feedback-error').textContent='请先填写问题描述';return null;}
     return `## 问题\n${description}\n\n## 环境\nClassGrid v${appVersion}${androidVersion?`\nAndroid ${androidVersion}`:''}`;
   }
-  function statusText(){return `${reminderStatus.notifications?'通知权限已开启':'通知权限未开启'} · ${reminderStatus.exact?'精确提醒可用':'按系统允许的时间提醒'}`;}
+  function statusText(){
+    if(!state.settings.remindersEnabled)return '提醒已关闭';
+    if(!reminderStatus.notifications)return '通知权限未开启，课程提醒无法显示';
+    if(!reminderStatus.exact)return '精确提醒未开启，系统可能延迟通知；请点击下方“精确提醒”授权';
+    if(reminderStatus.error)return reminderStatus.error;
+    if(reminderStatus.scheduled>0&&reminderStatus.nextAt){
+      const when=new Date(reminderStatus.nextAt);
+      return `已设置 ${reminderStatus.scheduled} 条提醒 · 下次 ${when.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`;
+    }
+    return '未来 21 天暂无可提前触发的课程提醒';
+  }
   function periodRow(p,index){return `<div class="period-row"><span class="period-number">${index+1}</span>
     <input class="period-start" type="time" value="${esc(p.start)}" aria-label="第 ${index+1} 节开始时间">
     <span class="period-dash">—</span><input class="period-end" type="time" value="${esc(p.end)}" aria-label="第 ${index+1} 节结束时间"></div>`;}
@@ -409,6 +466,7 @@
   }
   function handleAction(action,button){
     if(action==='close'){close();return;} if(action==='close-overlay'){if(button.classList.contains('overlay'))close();return;}
+    if(action==='theme'){const old=state.settings.theme;state.settings.theme=old==='dark'?'light':'dark';applyTheme();applyBackground(table);if(!save(false)){state.settings.theme=old;applyTheme();applyBackground(table);}return;}
     if(action==='prev'||action==='next'){week+=action==='prev'?-1:1;render();return;}
     if(action==='home'){render();return;}
     if(action==='today'){week=currentWeek();render();return;}
@@ -442,13 +500,12 @@
     if(action==='edit-selected'){const id=selectedEvent?.courseId;openEditor(id);return;}
     if(action==='add-session'){$('#sessions').insertAdjacentHTML('beforeend',sessionMarkup({},$('#sessions').children.length,$('#sessions .s-room')?.value||''));return;}
     if(action==='remove-session'){if($('#sessions').children.length>1)button.closest('.session').remove();return;}
-    if(action==='color'){setCourseColor(button.dataset.color);$('#color-picker').hidden=true;return;}
     if(action==='color-custom'){openColorPicker();return;}
-    if(action==='color-cancel'){$('#color-picker').hidden=true;return;}
+    if(action==='color-cancel'){closeColorPicker();return;}
     if(action==='color-apply'){
       const hex=$('#color-hex').value.trim().toUpperCase();
       if(!/^#[0-9A-F]{6}$/.test(hex)){$('#color-error').textContent='请输入 #RRGGBB 格式的颜色';return;}
-      setCourseColor(hex);$('#color-picker').hidden=true;return;
+      $('#color-choice').dataset.auto='false';setCourseColor(hex);closeColorPicker();return;
     }
     if(action==='save-course'){saveCourse();return;}
     if(action==='delete-course'){
@@ -509,13 +566,23 @@
       pendingImport=null;save();close();render();toast('导入完成');return;
     }
     if(action==='settings'){openSettings();return;}
+    if(action==='settings-tab'){
+      const selected=button.dataset.tab;
+      $$('.settings-tabs [data-tab]').forEach(tab=>{const active=tab.dataset.tab===selected;tab.classList.toggle('selected',active);tab.setAttribute('aria-selected',String(active));});
+      $$('.settings-panel').forEach(panel=>panel.hidden=panel.dataset.tab!==selected);
+      $('.sheet-body').scrollTop=0;return;
+    }
     if(action==='save-settings'){
       const name=$('#setting-name').value.trim(),date=$('#setting-date').value,weeks=Number($('#setting-weeks').value),mins=Number($('#reminder-minutes').value);
       if(!name||!/^\d{4}-\d\d-\d\d$/.test(date)||M.monday(date)!==date||weeks<1||weeks>30||mins<0||mins>240){$('#settings-error').textContent='请检查名称、第一周周一、总周数和提醒时间';return;}
       if(table.courses.some(c=>c.sessions.some(s=>s.weeks.some(w=>w>weeks)))){$('#settings-error').textContent='现有课程超出新的总周数';return;}
+      const turningOn=!state.settings.remindersEnabled&&$('#reminder-enabled').checked;
       table.name=name;table.startDate=date;table.totalWeeks=weeks;state.settings.remindersEnabled=$('#reminder-enabled').checked;
       state.settings.reminderMinutes=mins;week=Math.min(week,weeks);save();close();render();
-      if(state.settings.remindersEnabled&&!reminderStatus.notifications&&native)native.requestReminderPermission();
+      if(turningOn&&native){
+        if(!reminderStatus.notifications)native.requestReminderPermission();
+        else if(!reminderStatus.exact)native.openExactAlarmSettings();
+      }
       toast('设置已保存');return;
     }
     if(action==='periods'){openPeriods();return;}
@@ -552,6 +619,7 @@
     }
     if(action==='notification-permission'){if(native)native.requestReminderPermission();return;}
     if(action==='exact-permission'){if(native)native.openExactAlarmSettings();return;}
+    if(action==='test-reminder'){if(native?.testReminder)native.testReminder();else toast('请在安卓应用中测试提醒');return;}
     if(action==='backup'){exportFile('ClassGrid-backup.json','application/json',JSON.stringify(state));return;}
     if(action==='ics'){exportFile('ClassGrid-'+table.name+'.ics','text/calendar',M.toIcs(table));return;}
     if(action==='check-update'){if(native)native.checkForUpdates(true);else toast('请在安卓应用中检查更新');return;}
@@ -566,7 +634,7 @@
       else toast('请在安卓应用中分享');
       return;
     }
-    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.8</strong><small>2026-10-22</small></div></div><p>应用图标更换为 A 款周历；课前提醒使用独立的小图标。</p><div class="listrow"><div><strong>v1.2.7</strong><small>2026-10-22</small></div></div><p>单双周课程卡片显示标识；添加课程和批量导入可直接选择全部、单周或双周。</p><div class="listrow"><div><strong>v1.2.6</strong><small>2026-10-22</small></div></div><p>课程卡片统一使用白色文字。</p><div class="listrow"><div><strong>v1.2.5</strong><small>2026-10-22</small></div></div><p>长课程名按卡片空间换行显示，不再固定截成四行。</p><div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
+    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v2.0.0</strong><small>2026-10-22</small></div></div><p>调整设置与导入布局；新课程及批量导入自动配色；收起预设色板并增加入口图标。</p><div class="listrow"><div><strong>v1.2.8</strong><small>2026-10-22</small></div></div><p>应用图标更换为 A 款周历；课前提醒使用独立的小图标。</p><div class="listrow"><div><strong>v1.2.7</strong><small>2026-10-22</small></div></div><p>单双周课程卡片显示标识；添加课程和批量导入可直接选择全部、单周或双周。</p><div class="listrow"><div><strong>v1.2.6</strong><small>2026-10-22</small></div></div><p>课程卡片统一使用白色文字。</p><div class="listrow"><div><strong>v1.2.5</strong><small>2026-10-22</small></div></div><p>长课程名按卡片空间换行显示，不再固定截成四行。</p><div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
     if(action==='download-update'){
       if(pendingUpdate&&native){
         const action=$('[data-action="download-update"]');if(action){action.disabled=true;action.textContent='正在下载';}
@@ -599,6 +667,10 @@
     const field=$('#color-field');if(field?.hasPointerCapture(e.pointerId))pickColorAt(e.clientX,e.clientY);
   });
   document.addEventListener('input',e=>{
+    if(e.target.id==='c-name'||e.target.id==='c-teacher'){
+      if($('#color-choice')?.dataset.auto==='true')setCourseColor(M.nextCourseColor(table.courses,$('#c-name').value.trim(),$('#c-teacher').value.trim()));
+      return;
+    }
     if(e.target.id==='import-weeks'){updateImportPreview();return;}
     if(e.target.id==='color-hue'){
       pickerHsv.h=Number(e.target.value);updatePicker();return;
@@ -667,7 +739,14 @@
   };
   window.onExportDone=data=>toast(data.ok?'文件已保存':'导出失败');
   window.onFeedbackResult=data=>{if(data?.error)toast(data.error);};
-  window.onReminderStatus=data=>{reminderStatus=data||reminderStatus;const el=$('#permission-status');if(el)el.textContent=statusText();};
+  window.onReminderStatus=data=>{
+    reminderStatus=data||reminderStatus;
+    const el=$('#permission-status');if(el)el.textContent=statusText();
+  };
+  window.onReminderTest=data=>{
+    const message=data?.ok?(data.exact?'测试提醒已设置，约 1 分钟后查看通知':'测试提醒已设置，系统可能延迟显示'):data?.error||'测试提醒设置失败';
+    const el=$('#reminder-test-status');if(el)el.textContent=message;else toast(message);
+  };
   window.onUpdateCheck=data=>{
     if(data.error){if(data.manual)toast(data.error);return;}
     if(!data.available){if(data.manual)toast('已是最新版本');return;}
@@ -704,5 +783,6 @@
       positionCards(events,M.changeMarkers(table,week),M.conflicts(events));
     },80);
   });
-  render();
+  applyTheme();render();
+  if(native)native.syncReminders(JSON.stringify(M.reminderPayload(state)));
 })();

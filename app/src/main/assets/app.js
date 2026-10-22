@@ -12,7 +12,7 @@
   };
   const navIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'1.2.6';
+  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'1.2.7';
   const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
   let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:true,exact:true};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
@@ -105,17 +105,21 @@
       button.style.left=(7+34+(entry.day-1)*width+(width*index/count)+2)+'px';
       button.style.width=(width/count-4)+'px';
       button.dataset.action=marker?'marker':'detail';button.dataset.id=entry.id;
-      button.setAttribute('aria-label',marker?`${entry.name}，${entry.type==='cancel'?'本次停课':`已调至${entry.targetDate}第${entry.targetStart}至${entry.targetEnd}节`}`:entry.name);
+      const session=marker||entry.moved?null:table.courses.find(c=>c.id===entry.courseId)?.sessions.find(s=>s.id===entry.sessionId);
+      const pattern=session?M.weekPattern(session.weeks).mode:'custom';
+      const badge=pattern==='odd'?'单周':pattern==='even'?'双周':'';
+      button.setAttribute('aria-label',marker?`${entry.name}，${entry.type==='cancel'?'本次停课':`已调至${entry.targetDate}第${entry.targetStart}至${entry.targetEnd}节`}`:
+        `${entry.name}${badge?'，'+badge:''}`);
       button.innerHTML=marker?`<strong>${esc(entry.name)}</strong><span>${entry.type==='cancel'?'本次停课':`已调至<br>${esc(dateLabel(entry.targetDate))} ${entry.targetStart}-${entry.targetEnd}节`}</span>`:
-        `<strong>${esc(entry.name)}</strong><span class="course-room">${esc(entry.room)}</span>`;
+        `<strong>${esc(entry.name)}</strong><span class="course-room">${esc(entry.room)}</span>${badge?`<em class="week-badge">${badge}</em>`:''}`;
       grid.appendChild(button);
       fitCardText(button,marker);
     }
   }
   function fitCardText(card,marker){
-    const title=card.querySelector('strong'),secondary=card.querySelector('span');
+    const title=card.querySelector('strong'),secondary=card.querySelector('.course-room')||card.querySelector('span');
     const style=getComputedStyle(card);
-    const available=card.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom);
+    const available=card.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom)-(card.querySelector('.week-badge')?19:0);
     const fits=()=>title.offsetHeight+secondary.offsetHeight+(secondary.textContent?2:0)<=available;
     for(const size of [13,12,11,10,9]){
       title.style.fontSize=size+'px';secondary.style.fontSize=Math.max(8,size-3)+'px';
@@ -155,12 +159,20 @@
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="new-table">新建</button>');
     applyBackgroundPreview(table);
   }
-  function sessionMarkup(s={},index=0,fallbackRoom=''){return `<div class="session" data-id="${esc(s.id||'')}"><div class="session-head"><span>上课时段 ${index+1}</span><button class="button small" type="button" data-action="remove-session">移除</button></div>
+  function sessionMarkup(s={},index=0,fallbackRoom=''){
+    const pattern=s.weeks?M.weekPattern(s.weeks):{mode:'all',start:1,end:table.totalWeeks};
+    const custom=pattern.mode==='custom';
+    return `<div class="session" data-id="${esc(s.id||'')}"><div class="session-head"><span>上课时段 ${index+1}</span><button class="button small" type="button" data-action="remove-session">移除</button></div>
     <div class="row"><div class="field"><label>星期</label><select class="s-day">${days.map((d,i)=>`<option value="${i+1}" ${Number(s.day||1)===i+1?'selected':''}>周${d}</option>`).join('')}</select></div>
     <div class="field"><label>开始节</label><input class="s-start" type="number" min="1" max="${table.periods.length}" value="${s.start||1}"></div>
     <div class="field"><label>结束节</label><input class="s-end" type="number" min="1" max="${table.periods.length}" value="${s.end||Math.min(2,table.periods.length)}"></div></div>
-    <div class="row">${field('周次',`<input class="s-weeks" placeholder="1-16、1-16单" value="${esc(s.weeks?M.weeksLabel(s.weeks):`1-${table.totalWeeks}`)}">`)}
-    ${field('教室',`<input class="s-room" maxlength="100" placeholder="例如 A101" value="${esc(s.room??fallbackRoom)}">`)}</div></div>`;}
+    <div class="row">${field('周次',`<select class="s-week-mode" aria-label="周次类型">
+      <option value="all" ${pattern.mode==='all'?'selected':''}>全部周数</option><option value="odd" ${pattern.mode==='odd'?'selected':''}>单周</option>
+      <option value="even" ${pattern.mode==='even'?'selected':''}>双周</option><option value="custom" ${custom?'selected':''}>自选周次</option></select>`)}
+    ${field('教室',`<input class="s-room" maxlength="100" placeholder="例如 A101" value="${esc(s.room??fallbackRoom)}">`)}</div>
+    <div class="row s-week-range" ${custom?'hidden':''}>${field('从第几周',`<input class="s-week-start" type="number" min="1" max="${table.totalWeeks}" value="${pattern.start}">`)}
+    ${field('到第几周',`<input class="s-week-end" type="number" min="1" max="${table.totalWeeks}" value="${pattern.end}">`)}</div>
+    <div class="s-week-custom" ${custom?'':'hidden'}>${field('自选周次',`<input class="s-weeks" placeholder="例如 1,3,6-8" value="${esc(s.weeks?M.weeksLabel(s.weeks):`1-${table.totalWeeks}`)}">`)}</div></div>`;}
   function hexToHsv(hex){
     const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255),max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
     let h=0;if(d){if(max===r)h=((g-b)/d)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h=(h*60+360)%360;}
@@ -223,7 +235,10 @@
     return [...document.querySelectorAll('#sessions .session')].map((box,index)=>{
       const day=Number(box.querySelector('.s-day').value),start=Number(box.querySelector('.s-start').value),end=Number(box.querySelector('.s-end').value);
       if(!Number.isInteger(start)||!Number.isInteger(end)||start<1||end<start||end>table.periods.length)throw Error(`时段 ${index+1} 的节次无效`);
-      return {id:box.dataset.id||M.uid(),day,start,end,weeks:M.parseWeeks(box.querySelector('.s-weeks').value,table.totalWeeks),
+      const mode=box.querySelector('.s-week-mode').value;
+      const weeks=mode==='custom'?M.parseWeeks(box.querySelector('.s-weeks').value,table.totalWeeks):
+        M.selectWeeks(mode,box.querySelector('.s-week-start').value,box.querySelector('.s-week-end').value,table.totalWeeks);
+      return {id:box.dataset.id||M.uid(),day,start,end,weeks,
         room:box.querySelector('.s-room').value.trim()};
     });
   }
@@ -294,16 +309,38 @@
   }
   function previewImport(result,source){
     pendingImport={...result,source};
-    let arrangements=result.courses.reduce((n,c)=>n+c.sessions.length,0);
-    const trial={...table,courses:table.courses.concat(result.courses)};
-    let conflicts=0;for(let w=1;w<=table.totalWeeks;w++)conflicts+=M.conflicts(M.occurrences(trial,w)).size;
-    modal('核对导入',`<div class="note">${esc(source)} · ${result.courses.length} 门课 · ${arrangements} 个时段${conflicts?` · ${conflicts} 次时间重叠`:''}</div>
+    modal('核对导入',`<div class="note" id="import-summary"></div>
       ${result.issues?.length?`<div class="note warn">${result.issues.slice(0,5).map(esc).join('<br>')}</div>`:''}
       <div class="segmented"><label><input type="radio" name="import-mode" value="new" checked>新课表</label><label><input type="radio" name="import-mode" value="append">追加</label><label><input type="radio" name="import-mode" value="replace">替换</label></div>
       <div class="row" style="margin-top:12px">${field('新课表第一周周一',`<input id="import-date" type="date" value="${esc(table.startDate)}">`)}
       ${field('总周数',`<input id="import-weeks" type="number" min="1" max="30" value="${table.totalWeeks}">`)}</div>
-      <div class="course-preview">${result.courses.map(c=>`<div class="preview-item" style="border-left-color:${esc(c.color)}"><strong>${esc(c.name)}</strong><span>${esc(c.teacher)}<br>${c.sessions.map(s=>`周${days[s.day-1]} ${s.start}-${s.end} 节 · ${M.weeksLabel(s.weeks)} 周 · ${esc(s.room??c.room??'未填写教室')}`).join('<br>')}</span></div>`).join('')}</div>`,
+      ${field('导入课程的周次',`<select id="import-week-mode"><option value="source">保留文件周次</option><option value="all">全部周数</option><option value="odd">单周</option><option value="even">双周</option></select>`)}
+      <p class="error" id="import-error" role="alert"></p><div class="course-preview" id="import-course-preview"></div>`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="commit-import">导入</button>');
+    updateImportPreview();
+  }
+  function importSelection(){
+    const mode=$('input[name="import-mode"]:checked')?.value||'new';
+    const weeks=mode==='new'?Number($('#import-weeks').value):table.totalWeeks;
+    if(!Number.isInteger(weeks)||weeks<1||weeks>30)throw Error('总周数应在 1-30 周内');
+    const weekMode=$('#import-week-mode').value;
+    const courses=weekMode==='source'?pendingImport.courses:pendingImport.courses.map(c=>({...c,sessions:c.sessions.map(s=>
+      ({...s,weeks:M.selectWeeks(weekMode,1,weeks,weeks)}))}));
+    if(courses.some(c=>c.sessions.some(s=>s.weeks.some(w=>w>weeks))))throw Error('课程周次超出课表总周数');
+    return {mode,weeks,courses};
+  }
+  function updateImportPreview(){
+    if(!pendingImport?.courses||!$('#import-course-preview'))return;
+    try{
+      const {mode,weeks,courses}=importSelection();
+      const trial={...table,totalWeeks:weeks,courses:mode==='append'?table.courses.concat(courses):courses,
+        exceptions:mode==='append'?table.exceptions:[]};
+      let conflicts=0;for(let w=1;w<=weeks;w++)conflicts+=M.conflicts(M.occurrences(trial,w)).size;
+      const arrangements=courses.reduce((n,c)=>n+c.sessions.length,0);
+      $('#import-summary').textContent=`${pendingImport.source} · ${courses.length} 门课 · ${arrangements} 个时段${conflicts?` · ${conflicts} 次时间重叠`:''}`;
+      $('#import-course-preview').innerHTML=courses.map(c=>`<div class="preview-item" style="border-left-color:${esc(c.color)}"><strong>${esc(c.name)}</strong><span>${esc(c.teacher)}<br>${c.sessions.map(s=>`周${days[s.day-1]} ${s.start}-${s.end} 节 · ${M.weeksLabel(s.weeks)} 周 · ${esc(s.room??c.room??'未填写教室')}`).join('<br>')}</span></div>`).join('');
+      $('#import-error').textContent='';$('#import-summary').hidden=false;
+    }catch(e){$('#import-error').textContent=e.message;$('#import-summary').hidden=true;$('#import-course-preview').innerHTML='';}
   }
   function openSettings(){
     modal('设置',`${field('课表名称',`<input id="setting-name" value="${esc(table.name)}" maxlength="50">`)}
@@ -456,17 +493,19 @@
     if(action==='pick-file'){if(native)native.pickImport();else toast('请在安卓应用中选择文件');return;}
     if(action==='template'){exportFile('ClassGrid-课程模板.csv','text/csv','\uFEFF'+I.TEMPLATE);return;}
     if(action==='commit-import'){
-      if(!pendingImport)return;const mode=$('input[name="import-mode"]:checked')?.value||'new';
+      if(!pendingImport)return;
+      let selection;try{selection=importSelection();}catch(e){$('#import-error').textContent=e.message;return;}
+      const {mode,courses}=selection;
       if(mode==='new'){
         const date=$('#import-date').value,weeks=Number($('#import-weeks').value);
-        if(!date||M.monday(date)!==date||weeks<1||weeks>30||pendingImport.courses.some(c=>c.sessions.some(s=>s.weeks.some(w=>w>weeks)))){
+        if(!date||M.monday(date)!==date||weeks<1||weeks>30){
           toast('请检查第一周周一和总周数');return;
         }
         const t=M.defaultTable();t.name=pendingImport.source+'课表';t.startDate=date;t.totalWeeks=weeks;
-        t.courses=pendingImport.courses;state.tables.push(t);state.activeId=t.id;table=t;week=1;
+        t.courses=courses;state.tables.push(t);state.activeId=t.id;table=t;week=1;
       }
-      else if(mode==='replace'){table.courses=pendingImport.courses;table.exceptions=[];}
-      else table.courses.push(...pendingImport.courses);
+      else if(mode==='replace'){table.courses=courses;table.exceptions=[];}
+      else table.courses.push(...courses);
       pendingImport=null;save();close();render();toast('导入完成');return;
     }
     if(action==='settings'){openSettings();return;}
@@ -527,7 +566,7 @@
       else toast('请在安卓应用中分享');
       return;
     }
-    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.6</strong><small>2026-10-22</small></div></div><p>课程卡片统一使用白色文字。</p><div class="listrow"><div><strong>v1.2.5</strong><small>2026-10-22</small></div></div><p>长课程名按卡片空间换行显示，不再固定截成四行。</p><div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
+    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.7</strong><small>2026-10-22</small></div></div><p>单双周课程卡片显示标识；添加课程和批量导入可直接选择全部、单周或双周。</p><div class="listrow"><div><strong>v1.2.6</strong><small>2026-10-22</small></div></div><p>课程卡片统一使用白色文字。</p><div class="listrow"><div><strong>v1.2.5</strong><small>2026-10-22</small></div></div><p>长课程名按卡片空间换行显示，不再固定截成四行。</p><div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
     if(action==='download-update'){
       if(pendingUpdate&&native){
         const action=$('[data-action="download-update"]');if(action){action.disabled=true;action.textContent='正在下载';}
@@ -560,6 +599,7 @@
     const field=$('#color-field');if(field?.hasPointerCapture(e.pointerId))pickColorAt(e.clientX,e.clientY);
   });
   document.addEventListener('input',e=>{
+    if(e.target.id==='import-weeks'){updateImportPreview();return;}
     if(e.target.id==='color-hue'){
       pickerHsv.h=Number(e.target.value);updatePicker();return;
     }
@@ -575,6 +615,11 @@
     applyBackground(table,fade);
   });
   document.addEventListener('change',e=>{
+    if(e.target.classList.contains('s-week-mode')){
+      const box=e.target.closest('.session'),custom=e.target.value==='custom';
+      box.querySelector('.s-week-range').hidden=custom;box.querySelector('.s-week-custom').hidden=!custom;return;
+    }
+    if(e.target.id==='import-week-mode'||e.target.name==='import-mode'){updateImportPreview();return;}
     if(e.target.id!=='background-fade')return;
     const old=table.backgroundFade;table.backgroundFade=Number(e.target.value);
     if(!save()){table.backgroundFade=old;applyBackground(table);applyBackgroundPreview(table);}

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="372" viewBox="0 0 960 372">
+  <defs>
+    <linearGradient id="navy" x2="1" y2="1"><stop stop-color="#17364f"/><stop offset="1" stop-color="#25576b"/></linearGradient>
+    <linearGradient id="blue" x2="1" y2="1"><stop stop-color="#226b80"/><stop offset="1" stop-color="#319a9c"/></linearGradient>
+    <linearGradient id="cream" x2="1" y2="1"><stop stop-color="#f7f4ea"/><stop offset="1" stop-color="#e8f1ee"/></linearGradient>
+  </defs>
+  <rect width="960" height="372" fill="#f5f8fa"/>
+  <g transform="translate(55 24)">
+    <rect width="250" height="250" rx="56" fill="url(#navy)"/>
+    <rect x="46" y="56" width="158" height="149" rx="22" fill="#fff"/>
+    <path d="M46 91V78Q46 56 68 56H182Q204 56 204 78V91Z" fill="#ddf2ee"/>
+    <path d="M83 45v25M167 45v25" stroke="#fff" stroke-width="13" stroke-linecap="round"/>
+    <rect x="64" y="111" width="52" height="28" rx="8" fill="#7ac8c5"/>
+    <rect x="126" y="111" width="59" height="28" rx="8" fill="#e9ac79"/>
+    <rect x="64" y="150" width="83" height="36" rx="8" fill="#6b8ec2"/>
+    <rect x="156" y="150" width="29" height="36" rx="8" fill="#7ac8c5"/>
+    <text x="125" y="303" font-family="Arial,sans-serif" font-size="26" font-weight="700" text-anchor="middle" fill="#20394c">A · 周历</text>
+  </g>
+  <g transform="translate(355 24)">
+    <rect width="250" height="250" rx="56" fill="url(#cream)"/>
+    <rect x="45" y="45" width="160" height="160" rx="34" fill="#23465c"/>
+    <path d="M69 91h52v-22H89Q69 69 69 91v68q0 22 22 22h30v-22H91V91Z" fill="#ecf5f3"/>
+    <path d="M129 69h30q22 0 22 22v21h-22V91h-30Zm0 44h52v46q0 22-22 22h-30v-22h30v-24h-30Z" fill="#77c5c4"/>
+    <circle cx="170" cy="169" r="10" fill="#e9aa75"/>
+    <text x="125" y="303" font-family="Arial,sans-serif" font-size="26" font-weight="700" text-anchor="middle" fill="#20394c">B · 字母网格</text>
+  </g>
+  <g transform="translate(655 24)">
+    <rect width="250" height="250" rx="56" fill="url(#blue)"/>
+    <path d="M57 72h136M57 112h136M57 152h136M57 192h136" stroke="#c9e5e2" stroke-opacity=".5" stroke-width="4" stroke-linecap="round"/>
+    <path d="M80 52v150M125 52v150M170 52v150" stroke="#c9e5e2" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
+    <rect x="61" y="75" width="62" height="74" rx="12" fill="#eaa778"/>
+    <rect x="127" y="114" width="62" height="75" rx="12" fill="#faf8ef"/>
+    <rect x="84" y="83" width="15" height="4" rx="2" fill="#fff"/>
+    <rect x="84" y="94" width="24" height="4" rx="2" fill="#fff"/>
+    <rect x="150" y="125" width="16" height="4" rx="2" fill="#28788a"/>
+    <rect x="150" y="136" width="26" height="4" rx="2" fill="#28788a"/>
+    <text x="125" y="303" font-family="Arial,sans-serif" font-size="26" font-weight="700" text-anchor="middle" fill="#20394c">C · 课程方块</text>
+  </g>
+</svg>

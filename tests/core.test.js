@@ -7,6 +7,16 @@ t.startDate='2026-09-21';
 t.totalWeeks=16;
 assert.deepEqual(M.parseWeeks('1-8单,10,12',16),[1,3,5,7,10,12]);
 assert.deepEqual(M.parseWeeks('2-8双',16),[2,4,6,8]);
+assert.deepEqual(M.parseWeeks('单周',6),[1,3,5]);
+assert.deepEqual(M.parseWeeks('双周',6),[2,4,6]);
+assert.deepEqual(M.parseWeeks('全部周数',4),[1,2,3,4]);
+assert.deepEqual(M.selectWeeks('odd',3,11,16),[3,5,7,9,11]);
+assert.deepEqual(M.selectWeeks('even',3,10,16),[4,6,8,10]);
+assert.equal(M.weekPattern([1,3,5,7]).mode,'odd');
+assert.equal(M.weekPattern([2,4,6,8]).mode,'even');
+assert.equal(M.weekPattern([1,2,3,4]).mode,'all');
+assert.equal(M.weekPattern([1,5,9]).mode,'custom');
+assert.throws(()=>M.selectWeeks('even',1,1,16),/没有对应/);
 assert.equal(M.weekOf(t,'2026-10-05'),3);
 assert.equal(M.dateFor(t,3,5),'2026-10-09');
 const course={id:'c1',name:'电力系统分析基础',teacher:'张老师',room:'403',color:'#477F8B',
@@ -56,6 +66,8 @@ const csv='课程,教师,教室,星期,开始节,结束节,周次\n"大学,英�
 const imported=I.parseCsvCourses(csv,16);
 assert.equal(imported.courses[0].name,'大学,英语');
 assert.deepEqual(imported.courses[0].sessions[0].weeks,[2,4,6,8,10,12]);
+const quickCsv=I.parseCsvCourses('课程,教师,教室,星期,开始节,结束节,周次\n体育,老师,操场,二,5,6,双周\n',16);
+assert.deepEqual(quickCsv.courses[0].sessions[0].weeks,[2,4,6,8,10,12,14,16]);
 const twoRooms=I.parseCsvCourses('课程,教师,教室,星期,开始节,结束节,周次\n电机拖动基础,张老师,A106,二,1,2,1-16\n电机拖动基础,张老师,B403,五,7,8,1-16\n',16);
 assert.equal(twoRooms.courses.length,1);
 assert.deepEqual(twoRooms.courses[0].sessions.map(s=>s.room),['A106','B403']);

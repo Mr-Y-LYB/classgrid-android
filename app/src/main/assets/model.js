@@ -17,6 +17,8 @@
   function parseWeeks(input,maxWeeks=30){
     const result=new Set();let source=String(input||'').trim();
     if(!source)throw Error('请填写周次');
+    if(/^(全部周数|全部|每周)$/.test(source))return selectWeeks('all',1,maxWeeks,maxWeeks);
+    if(/^(单周|双周)$/.test(source))return selectWeeks(source==='单周'?'odd':'even',1,maxWeeks,maxWeeks);
     source=source.replace(/第|周次/g,'').replace(/[，、；;]+/g,',').replace(/[～~—–至到]/g,'-');
     for(const raw of source.split(',').map(x=>x.trim()).filter(Boolean)){
       const parity=/单|odd/i.test(raw)?1:/双|even/i.test(raw)?0:null;
@@ -28,6 +30,22 @@
     }
     if(!result.size)throw Error('周次为空');
     return [...result].sort((a,b)=>a-b);
+  }
+  function selectWeeks(mode,start,end,maxWeeks=30){
+    start=Number(start);end=Number(end);
+    if(!['all','odd','even'].includes(mode)||!Number.isInteger(start)||!Number.isInteger(end)||
+       start<1||end<start||end>maxWeeks)throw Error(`周次应在 1-${maxWeeks} 周内`);
+    const weeks=[];for(let w=start;w<=end;w++)if(mode==='all'||w%2===(mode==='odd'?1:0))weeks.push(w);
+    if(!weeks.length)throw Error('所选范围没有对应的单周或双周');
+    return weeks;
+  }
+  function weekPattern(weeks){
+    const ws=[...new Set((weeks||[]).map(Number))].sort((a,b)=>a-b);
+    if(!ws.length)return {mode:'custom',start:1,end:1};
+    const step=ws.length>1?ws[1]-ws[0]:0;
+    const mode=ws.length>1&&ws.every((w,i)=>i===0||w-ws[i-1]===step)?
+      step===1?'all':step===2?(ws[0]%2?'odd':'even'):'custom':'custom';
+    return {mode,start:ws[0],end:ws[ws.length-1]};
   }
   function weeksLabel(weeks){
     const ws=[...new Set((weeks||[]).map(Number))].sort((a,b)=>a-b);if(!ws.length)return '';
@@ -149,6 +167,6 @@
     const events=table?allOccurrences(table).map(e=>({id:e.id,at:eventTime(table,e)?.start||0,title:e.name,room:e.room})).filter(e=>e.at):[];
     return {enabled:!!state.settings.remindersEnabled,minutes:Number(state.settings.reminderMinutes??15),events};
   }
-  return {SCHEMA,COLORS,DEFAULT_PERIODS,uid,todayDate,monday,dateAdd,weekOf,dateFor,defaultTable,defaultState,parseWeeks,weeksLabel,contrastText,
+  return {SCHEMA,COLORS,DEFAULT_PERIODS,uid,todayDate,monday,dateAdd,weekOf,dateFor,defaultTable,defaultState,parseWeeks,selectWeeks,weekPattern,weeksLabel,contrastText,
     validateState,activeTable,occurrences,changeMarkers,conflicts,allOccurrences,eventTime,toIcs,reminderPayload};
 });

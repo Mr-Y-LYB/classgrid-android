@@ -1,7 +1,7 @@
 (function(root,factory){const api=factory(root.CGModel||(typeof require==='function'?require('./model.js'):null));if(typeof module==='object'&&module.exports)module.exports=api;root.CGImport=api;})(typeof globalThis!=='undefined'?globalThis:this,function(M){
   'use strict';
   const HEADERS=['课程','教师','教室','星期','开始节','结束节','周次'];
-  const TEMPLATE='课程,教师,教室,星期,开始节,结束节,周次\r\n高等数学,张老师,A101,一,1,2,1-16\r\n大学英语,李老师,B202,三,3,4,1-16单\r\n';
+  const TEMPLATE='课程,教师,教室,星期,开始节,结束节,周次\r\n高等数学,张老师,A101,一,1,2,全部周数\r\n大学英语,李老师,B202,三,3,4,单周\r\n';
   function clean(v){return String(v==null?'':v).replace(/\u00a0/g,' ').replace(/\r/g,'').trim();}
   function dayNumber(value){
     const s=clean(value).replace(/\s/g,'');

@@ -35,6 +35,7 @@ async function main(){
   assert.equal(await evaluate('document.querySelectorAll("[data-action=settings]").length'),1);
   assert.equal(await evaluate('document.querySelectorAll("[data-action=manage]").length'),1);
   assert.equal(await evaluate('document.querySelectorAll(".bottom .navbtn").length'),4);
+  assert.equal(await evaluate('document.querySelector(".brandmark") instanceof HTMLImageElement && document.querySelector(".brandmark").complete && document.querySelector(".brandmark").naturalWidth===250'),true);
   assert.match(await evaluate('Array.from(document.querySelectorAll(".bottom .navbtn span")).map(x=>x.textContent).join("")'),/课表添加课程导入课表设置/);
   const homeShot=await command('Page.captureScreenshot',{format:'png'});
   fs.writeFileSync(path.join(root,'dist','ui-home.png'),Buffer.from(homeShot.data,'base64'));
@@ -163,7 +164,7 @@ async function main(){
   await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:tap.x,y:tap.y,button:'left',clickCount:1});
   assert.equal(await evaluate('document.querySelector(".sheet-head h2").textContent'),'导入课表');
   assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-action=import]")).transform'),'none');
-  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.Native={appVersion:()=>"1.2.7",androidVersion:()=>"15",loadState:()=>localStorage.getItem("classgrid-state")||"",saveState:(json)=>{localStorage.setItem("classgrid-state",json);return true},syncReminders:()=>{},downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u]),openFeedback:(...a)=>window.__updateCalls.push(["feedback",...a]),shareFeedback:(t)=>window.__updateCalls.push(["share",t]),readBackgroundChunk:(token,offset,length)=>token==="test"?window.__pendingBackground.slice(offset,offset+length):"",clearPendingBackground:()=>{window.__pendingBackground=null}};'});
+  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.Native={appVersion:()=>"1.2.8",androidVersion:()=>"15",loadState:()=>localStorage.getItem("classgrid-state")||"",saveState:(json)=>{localStorage.setItem("classgrid-state",json);return true},syncReminders:()=>{},downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u]),openFeedback:(...a)=>window.__updateCalls.push(["feedback",...a]),shareFeedback:(t)=>window.__updateCalls.push(["share",t]),readBackgroundChunk:(token,offset,length)=>token==="test"?window.__pendingBackground.slice(offset,offset+length):"",clearPendingBackground:()=>{window.__pendingBackground=null}};'});
   await command('Page.navigate',{url:'file:///'+path.join(root,'app/src/main/assets/index.html').replace(/\\/g,'/')});
   await wait(700);
   await evaluate('window.onUpdateCheck('+JSON.stringify(announcement)+')');
@@ -202,11 +203,11 @@ async function main(){
   assert.equal(added.color,'#204340');
   assert.match(await evaluate('Array.from(document.querySelectorAll(".course-card")).filter(e=>e.textContent.includes("双教室课程")).map(e=>e.textContent).join("|")'),/A106.*B403/);
   await evaluate('document.querySelector("[data-action=settings]").click()');
-  assert.match(await evaluate('document.querySelector(".version").textContent'),/v1\.2\.7/);
+  assert.match(await evaluate('document.querySelector(".version").textContent'),/v1\.2\.8/);
   await evaluate('document.querySelector("[data-action=feedback]").click()');
   await evaluate('document.querySelector("#feedback-text").value="切换周次后颜色异常";document.querySelector("[data-action=feedback-github]").click()');
   assert.equal(await evaluate('window.__updateCalls.at(-1)[0]'),'feedback');
-  assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/ClassGrid v1\.2\.7/);
+  assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/ClassGrid v1\.2\.8/);
   assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/Android 15/);
   assert.doesNotMatch(await evaluate('window.__updateCalls.at(-1)[2]'),/A106|B403/);
   await evaluate('document.querySelector("[data-action=feedback-share]").click()');

@@ -38,6 +38,7 @@ button{-webkit-tap-highlight-color:transparent}.button,.iconbtn,.navbtn,.todaybt
 .s-week-range[hidden],.s-week-custom[hidden]{display:none!important}
 .s-week-range{padding-top:1px}
 .s-week-custom .field{margin-bottom:0}
+.brandmark{display:block;padding:0;background:none;object-fit:contain}
 
 #color-choice{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px 3px}
 #color-choice .swatch{width:30px;height:30px;justify-self:center;flex:none}

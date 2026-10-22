@@ -26,7 +26,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         String title = intent.getStringExtra("title");
         String room = intent.getStringExtra("room");
         Notification notification = new Notification.Builder(context, channel)
-            .setSmallIcon(R.drawable.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title == null || title.isEmpty() ? "即将上课" : title)
             .setContentText(room == null || room.isEmpty() ? "即将上课" : room)
             .setContentIntent(pending).setAutoCancel(true).build();

@@ -12,7 +12,7 @@
   };
   const navIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'1.2.7';
+  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'1.2.8';
   const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
   let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:true,exact:true};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
@@ -47,7 +47,7 @@
     eventsById=new Map(occurrences.map(x=>[x.id,x]));
     markersById=new Map(markers.map(x=>[x.id,x]));
     $('#app').innerHTML=`<main class="shell">
-      <div class="top"><div class="brand"><span class="brandmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="brandtitle">ClassGrid</span></div>
+      <div class="top"><div class="brand"><img class="brandmark" src="icon-a.svg" alt="" aria-hidden="true"><span class="brandtitle">ClassGrid</span></div>
         <button class="manage-btn" data-action="manage">切换／新建</button></div>
       <div class="toolbar"><strong class="table-name" title="${esc(table.name)}">${esc(table.name)}</strong>
         <div class="weeknav"><button class="iconbtn" data-action="prev" aria-label="上一周">‹</button>
@@ -566,7 +566,7 @@
       else toast('请在安卓应用中分享');
       return;
     }
-    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.7</strong><small>2026-10-22</small></div></div><p>单双周课程卡片显示标识；添加课程和批量导入可直接选择全部、单周或双周。</p><div class="listrow"><div><strong>v1.2.6</strong><small>2026-10-22</small></div></div><p>课程卡片统一使用白色文字。</p><div class="listrow"><div><strong>v1.2.5</strong><small>2026-10-22</small></div></div><p>长课程名按卡片空间换行显示，不再固定截成四行。</p><div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
+    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.8</strong><small>2026-10-22</small></div></div><p>应用图标更换为 A 款周历；课前提醒使用独立的小图标。</p><div class="listrow"><div><strong>v1.2.7</strong><small>2026-10-22</small></div></div><p>单双周课程卡片显示标识；添加课程和批量导入可直接选择全部、单周或双周。</p><div class="listrow"><div><strong>v1.2.6</strong><small>2026-10-22</small></div></div><p>课程卡片统一使用白色文字。</p><div class="listrow"><div><strong>v1.2.5</strong><small>2026-10-22</small></div></div><p>长课程名按卡片空间换行显示，不再固定截成四行。</p><div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
     if(action==='download-update'){
       if(pendingUpdate&&native){
         const action=$('[data-action="download-update"]');if(action){action.disabled=true;action.textContent='正在下载';}

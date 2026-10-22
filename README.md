@@ -14,7 +14,7 @@
 
 CSV/XLSX 表头：`课程,教师,教室,星期,开始节,结束节,周次`。周次可填`全部周数`、`单周`、`双周`，也支持`1-12单`、`1,3,5`等范围。
 
-新图标候选见[图标对比图](design/icon-proposals/icon-options.png)。正式图标尚未更换。
+应用图标采用[周历方案 A](design/icon-proposals/icon-options.png)。
 
 ## 更新
 

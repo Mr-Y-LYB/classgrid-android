@@ -13,6 +13,7 @@ const course={id:'c1',name:'电力系统分析基础',teacher:'张老师',room:'
   sessions:[{id:'s1',day:1,start:1,end:2,weeks:M.parseWeeks('1-11单',16)}]};
 t.courses=[course];
 assert.equal(M.occurrences(t,1).length,1);
+assert.equal(M.occurrences(t,1)[0].room,'403');
 assert.equal(M.occurrences(t,2).length,0);
 assert.equal(M.occurrences(t,3)[0].date,'2026-10-05');
 t.exceptions.push({id:'x1',type:'cancel',courseId:'c1',sessionId:'s1',sourceDate:'2026-09-21'});
@@ -55,6 +56,25 @@ const csv='课程,教师,教室,星期,开始节,结束节,周次\n"大学,英�
 const imported=I.parseCsvCourses(csv,16);
 assert.equal(imported.courses[0].name,'大学,英语');
 assert.deepEqual(imported.courses[0].sessions[0].weeks,[2,4,6,8,10,12]);
+const twoRooms=I.parseCsvCourses('课程,教师,教室,星期,开始节,结束节,周次\n电机拖动基础,张老师,A106,二,1,2,1-16\n电机拖动基础,张老师,B403,五,7,8,1-16\n',16);
+assert.equal(twoRooms.courses.length,1);
+assert.deepEqual(twoRooms.courses[0].sessions.map(s=>s.room),['A106','B403']);
+const roomTable={...M.defaultTable(),startDate:'2026-09-21',totalWeeks:16,courses:twoRooms.courses};
+assert.deepEqual(M.occurrences(roomTable,1).map(e=>e.room),['A106','B403']);
+const movedRoom={...roomTable,exceptions:[{id:'move-room',type:'move',courseId:twoRooms.courses[0].id,
+  sessionId:twoRooms.courses[0].sessions[1].id,sourceDate:'2026-09-25',targetDate:'2026-09-24',start:7,end:8}]};
+assert.equal(M.occurrences(movedRoom,1).find(e=>e.moved).room,'B403');
+assert.match(M.toIcs(roomTable),/LOCATION:A106/);
+assert.match(M.toIcs(roomTable),/LOCATION:B403/);
+assert.deepEqual(M.reminderPayload({schema:1,activeId:roomTable.id,tables:[roomTable],settings:{remindersEnabled:true,reminderMinutes:15}}).events.slice(0,2).map(e=>e.room),['A106','B403']);
+const roomBackup={schema:1,activeId:roomTable.id,tables:[roomTable],settings:{remindersEnabled:false,reminderMinutes:15}};
+assert.equal(M.validateState(JSON.parse(JSON.stringify(roomBackup))).tables[0].courses[0].sessions[1].room,'B403');
+const invalidRoom=JSON.parse(JSON.stringify(roomBackup));invalidRoom.tables[0].courses[0].sessions[1].room='x'.repeat(101);
+assert.throws(()=>M.validateState(invalidRoom),/上课安排无效/);
+const customColor=JSON.parse(JSON.stringify(roomBackup));customColor.tables[0].courses[0].color='#204340';
+assert.equal(M.validateState(customColor).tables[0].courses[0].color,'#204340');
+assert.equal(M.contrastText('#204340'),'#fff');
+assert.equal(M.contrastText('#F5F2D8'),'#101010');
 
 // Same merged weekday/period structure shown in the user's university screenshot.
 const cell=(text,rowSpan=1,colSpan=1)=>({text,rowSpan,colSpan});

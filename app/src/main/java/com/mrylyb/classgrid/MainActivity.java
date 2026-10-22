@@ -138,6 +138,11 @@ public class MainActivity extends Activity {
     }
 
     public class Bridge {
+        @JavascriptInterface public String appVersion() {
+            try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+            catch (Exception e) { return ""; }
+        }
+        @JavascriptInterface public String androidVersion() { return Build.VERSION.RELEASE; }
         @JavascriptInterface public String loadState() {
             try { return new String(java.nio.file.Files.readAllBytes(stateFile().toPath()), StandardCharsets.UTF_8); }
             catch (Exception e) { return ""; }
@@ -251,6 +256,34 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void openUpdateInBrowser(String url) {
             updater.openInBrowser(url);
+        }
+        @JavascriptInterface public void openFeedback(String title, String body) {
+            if (body == null || body.length() > 2500) return;
+            runOnUiThread(() -> {
+                try {
+                    Uri url = Uri.parse("https://github.com/Mr-Y-LYB/classgrid-android/issues/new")
+                        .buildUpon().appendQueryParameter("title", title == null ? "问题反馈" : title)
+                        .appendQueryParameter("body", body).build();
+                    Intent intent = new Intent(Intent.ACTION_VIEW, url);
+                    intent.addCategory(Intent.CATEGORY_BROWSABLE);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    callback("onFeedbackResult", "{\"error\":\"无法打开 GitHub\"}");
+                }
+            });
+        }
+        @JavascriptInterface public void shareFeedback(String text) {
+            if (text == null || text.length() > 2500) return;
+            runOnUiThread(() -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_SEND);
+                    intent.setType("text/plain");
+                    intent.putExtra(Intent.EXTRA_TEXT, text);
+                    startActivity(Intent.createChooser(intent, "分享反馈"));
+                } catch (Exception e) {
+                    callback("onFeedbackResult", "{\"error\":\"无法打开分享页面\"}");
+                }
+            });
         }
     }
 

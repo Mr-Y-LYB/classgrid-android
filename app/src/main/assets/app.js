@@ -12,6 +12,8 @@
   };
   const navIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'1.2.4';
+  const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
   let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:true,exact:true};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
   catch(e){state=M.defaultState();}
@@ -96,7 +98,7 @@
       const count=overlapping.length,index=overlapping.findIndex(x=>x.id===entry.id);
       const marker=!!entry.exceptionId;
       const button=document.createElement('button');button.className='course-card'+(marker?' change-marker':'')+(conflicts.has(entry.id)?' conflict':'')+(entry.moved?' moved':'');
-      if(!marker)button.style.background=entry.color;
+      if(!marker){button.style.background=entry.color;button.style.color=M.contrastText(entry.color);}
       else button.style.setProperty('--course-color',entry.color);
       button.style.top=((entry.start-1)*72+3)+'px';
       button.style.height=((entry.end-entry.start+1)*72-6)+'px';
@@ -137,18 +139,65 @@
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="new-table">新建</button>');
     applyBackgroundPreview(table);
   }
-  function sessionMarkup(s={},index=0){return `<div class="session" data-id="${esc(s.id||'')}"><div class="session-head"><span>上课时段 ${index+1}</span><button class="button small" type="button" data-action="remove-session">移除</button></div>
+  function sessionMarkup(s={},index=0,fallbackRoom=''){return `<div class="session" data-id="${esc(s.id||'')}"><div class="session-head"><span>上课时段 ${index+1}</span><button class="button small" type="button" data-action="remove-session">移除</button></div>
     <div class="row"><div class="field"><label>星期</label><select class="s-day">${days.map((d,i)=>`<option value="${i+1}" ${Number(s.day||1)===i+1?'selected':''}>周${d}</option>`).join('')}</select></div>
     <div class="field"><label>开始节</label><input class="s-start" type="number" min="1" max="${table.periods.length}" value="${s.start||1}"></div>
     <div class="field"><label>结束节</label><input class="s-end" type="number" min="1" max="${table.periods.length}" value="${s.end||Math.min(2,table.periods.length)}"></div></div>
-    ${field('周次',`<input class="s-weeks" placeholder="1-16、1-16单、1,3,5" value="${esc(s.weeks?M.weeksLabel(s.weeks):`1-${table.totalWeeks}`)}">`)}</div>`;}
+    <div class="row">${field('周次',`<input class="s-weeks" placeholder="1-16、1-16单" value="${esc(s.weeks?M.weeksLabel(s.weeks):`1-${table.totalWeeks}`)}">`)}
+    ${field('教室',`<input class="s-room" maxlength="100" placeholder="例如 A101" value="${esc(s.room??fallbackRoom)}">`)}</div></div>`;}
+  function hexToHsv(hex){
+    const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255),max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
+    let h=0;if(d){if(max===r)h=((g-b)/d)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h=(h*60+360)%360;}
+    return {h,s:max?d/max:0,v:max};
+  }
+  function hsvToHex({h,s,v}){
+    const chroma=v*s,x=chroma*(1-Math.abs((h/60)%2-1)),m=v-chroma;
+    const rgb=h<60?[chroma,x,0]:h<120?[x,chroma,0]:h<180?[0,chroma,x]:h<240?[0,x,chroma]:h<300?[x,0,chroma]:[chroma,0,x];
+    return '#'+rgb.map(n=>Math.round((n+m)*255).toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+  let pickerHsv={h:180,s:.6,v:.6};
+  function updatePicker(syncHex=true){
+    const field=$('#color-field');if(!field)return;
+    const hex=hsvToHex(pickerHsv);
+    field.style.setProperty('--picker-hue',`hsl(${Math.round(pickerHsv.h)} 100% 50%)`);
+    $('#color-point').style.left=`${pickerHsv.s*100}%`;$('#color-point').style.top=`${(1-pickerHsv.v)*100}%`;
+    $('#color-preview').style.background=hex;$('#color-preview').style.color=M.contrastText(hex);
+    $('#color-hue').value=Math.round(pickerHsv.h);
+    if(syncHex)$('#color-hex').value=hex;
+  }
+  function setCourseColor(hex){
+    if(!/^#[0-9a-f]{6}$/i.test(hex))return;
+    const choice=$('#color-choice');choice.dataset.color=hex.toUpperCase();
+    choice.querySelectorAll('.swatch').forEach(button=>button.classList.toggle('selected',button.dataset.color?.toUpperCase()===hex.toUpperCase()));
+    const custom=$('#custom-color');custom.style.background=hex;
+    custom.classList.toggle('selected',!M.COLORS.some(c=>c.toUpperCase()===hex.toUpperCase()));
+  }
+  function openColorPicker(){
+    pickerHsv=hexToHsv($('#color-choice').dataset.color);
+    $('#color-picker').hidden=false;updatePicker();
+    const body=$('.sheet-body'),delta=$('#color-picker').getBoundingClientRect().bottom-body.getBoundingClientRect().bottom+12;
+    if(delta>0)body.scrollBy({top:delta,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  }
+  function pickColorAt(x,y){
+    const rect=$('#color-field').getBoundingClientRect();
+    pickerHsv.s=Math.max(0,Math.min(1,(x-rect.left)/rect.width));
+    pickerHsv.v=1-Math.max(0,Math.min(1,(y-rect.top)/rect.height));
+    updatePicker();
+  }
   function openEditor(courseId){
     const course=table.courses.find(x=>x.id===courseId);
+    const chosenColor=course?.color||M.COLORS[0],preset=M.COLORS.some(c=>c.toUpperCase()===chosenColor.toUpperCase());
     modal(course?'编辑课程':'添加课程',`<div id="course-form" data-id="${course?esc(course.id):''}">
       ${field('课程名称',`<input id="c-name" maxlength="100" value="${esc(course?.name||'')}" placeholder="课程名称">`)}
-      <div class="row">${field('教师',`<input id="c-teacher" maxlength="60" value="${esc(course?.teacher||'')}">`)}${field('教室',`<input id="c-room" maxlength="100" value="${esc(course?.room||'')}">`)}</div>
-      <div class="field"><label>颜色</label><div class="choice" id="color-choice">${M.COLORS.map(c=>`<button type="button" class="swatch ${c===(course?.color||M.COLORS[0])?'selected':''}" style="background:${c}" data-action="color" data-color="${c}" aria-label="选择颜色"></button>`).join('')}</div></div>
-      <div class="section-title">上课时间</div><div id="sessions">${(course?.sessions.length?course.sessions:[{}]).map(sessionMarkup).join('')}</div>
+      ${field('教师',`<input id="c-teacher" maxlength="60" value="${esc(course?.teacher||'')}">`)}
+      <div class="field"><label>颜色</label><div class="choice" id="color-choice" data-color="${esc(chosenColor)}">${M.COLORS.map(c=>`<button type="button" class="swatch ${c.toUpperCase()===chosenColor.toUpperCase()?'selected':''}" style="background:${c}" data-action="color" data-color="${c}" aria-label="选择 ${c}"></button>`).join('')}
+      <button type="button" class="swatch custom-color ${preset?'':'selected'}" id="custom-color" style="background:${esc(chosenColor)}" data-action="color-custom" aria-label="自定义颜色">＋</button></div></div>
+      <div class="color-picker" id="color-picker" hidden><div class="color-picker-title">自定义颜色</div>
+      <div class="color-picker-controls"><div class="color-field" id="color-field"><span id="color-point"></span></div><input id="color-hue" type="range" min="0" max="359" value="180" aria-label="色相"></div>
+      <div class="color-picker-value"><div class="color-sample" id="color-preview">Aa</div>${field('HEX',`<input id="color-hex" maxlength="7" inputmode="text" value="${esc(chosenColor)}" aria-label="十六进制颜色">`)}</div>
+      <p class="error" id="color-error"></p>
+      <div class="row"><button type="button" class="button fill" data-action="color-cancel">收起</button><button type="button" class="button primary fill" data-action="color-apply">选用颜色</button></div></div>
+      <div class="section-title">上课时间</div><div id="sessions">${(course?.sessions.length?course.sessions:[{}]).map((s,i)=>sessionMarkup(s,i,course?.room||'')).join('')}</div>
       ${course&&table.exceptions.some(x=>x.courseId===course.id)?`<div class="section-title">临时变更</div>${table.exceptions.filter(x=>x.courseId===course.id).map(x=>
         `<div class="listrow"><small>${esc(x.sourceDate)} · ${x.type==='cancel'?'停课':`调至 ${esc(x.targetDate)}`}</small><button class="button small" data-action="remove-exception" data-id="${esc(x.id)}">恢复</button></div>`).join('')}`:''}
       <button class="button small" data-action="add-session">＋ 添加时段</button><p class="error" id="editor-error"></p></div>`,
@@ -158,7 +207,8 @@
     return [...document.querySelectorAll('#sessions .session')].map((box,index)=>{
       const day=Number(box.querySelector('.s-day').value),start=Number(box.querySelector('.s-start').value),end=Number(box.querySelector('.s-end').value);
       if(!Number.isInteger(start)||!Number.isInteger(end)||start<1||end<start||end>table.periods.length)throw Error(`时段 ${index+1} 的节次无效`);
-      return {id:box.dataset.id||M.uid(),day,start,end,weeks:M.parseWeeks(box.querySelector('.s-weeks').value,table.totalWeeks)};
+      return {id:box.dataset.id||M.uid(),day,start,end,weeks:M.parseWeeks(box.querySelector('.s-weeks').value,table.totalWeeks),
+        room:box.querySelector('.s-room').value.trim()};
     });
   }
   function saveCourse(){
@@ -166,8 +216,9 @@
     try{
       if(!name)throw Error('请填写课程名称');
       const old=table.courses.find(x=>x.id===id);
-      const course={id:id||M.uid(),name,teacher:$('#c-teacher').value.trim(),room:$('#c-room').value.trim(),
-        color:$('#color-choice .selected')?.dataset.color||M.COLORS[0],sessions:readSessions()};
+      const sessions=readSessions();
+      const course={id:id||M.uid(),name,teacher:$('#c-teacher').value.trim(),room:sessions[0]?.room||'',
+        color:$('#color-choice').dataset.color||M.COLORS[0],sessions};
       const next=table.courses.filter(x=>x.id!==id).concat(course);
       const trial={...table,courses:next};let count=0;
       for(let w=1;w<=trial.totalWeeks;w++)count+=M.conflicts(M.occurrences(trial,w)).size;
@@ -187,7 +238,7 @@
     if(event.moved){
       const change=table.exceptions.find(x=>x.id===event.id),session=course.sessions.find(x=>x.id===event.sessionId);
       if(change&&session)selectedMarker={exceptionId:change.id,courseId:course.id,sessionId:session.id,date:change.sourceDate,
-        start:session.start,end:session.end,room:course.room||'',type:'move'};
+        start:session.start,end:session.end,room:session.room??course.room??'',type:'move'};
     }
     const info=`<div class="note" style="border-left:5px solid ${esc(event.color)}"><strong>${esc(course.name)}</strong><br>
       周${days[event.day-1]} · 第 ${event.start}-${event.end} 节 · ${esc(event.date)}<br>
@@ -235,7 +286,7 @@
       <div class="segmented"><label><input type="radio" name="import-mode" value="new" checked>新课表</label><label><input type="radio" name="import-mode" value="append">追加</label><label><input type="radio" name="import-mode" value="replace">替换</label></div>
       <div class="row" style="margin-top:12px">${field('新课表第一周周一',`<input id="import-date" type="date" value="${esc(table.startDate)}">`)}
       ${field('总周数',`<input id="import-weeks" type="number" min="1" max="30" value="${table.totalWeeks}">`)}</div>
-      <div class="course-preview">${result.courses.map(c=>`<div class="preview-item" style="border-left-color:${c.color}"><strong>${esc(c.name)}</strong><span>${esc(c.teacher)} ${esc(c.room)}<br>${c.sessions.map(s=>`周${days[s.day-1]} ${s.start}-${s.end} 节 · ${M.weeksLabel(s.weeks)} 周`).join('<br>')}</span></div>`).join('')}</div>`,
+      <div class="course-preview">${result.courses.map(c=>`<div class="preview-item" style="border-left-color:${esc(c.color)}"><strong>${esc(c.name)}</strong><span>${esc(c.teacher)}<br>${c.sessions.map(s=>`周${days[s.day-1]} ${s.start}-${s.end} 节 · ${M.weeksLabel(s.weeks)} 周 · ${esc(s.room??c.room??'未填写教室')}`).join('<br>')}</span></div>`).join('')}</div>`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="commit-import">导入</button>');
   }
   function openSettings(){
@@ -252,8 +303,19 @@
       <button class="button fill" data-action="ics">导出日历</button></div>
       <div class="section-title">应用</div><div class="row"><button class="button fill" data-action="check-update">检查更新</button>
       <button class="button fill" data-action="changelog">更新说明</button></div>
-      <p class="version">ClassGrid v1.2.2</p><p class="error" id="settings-error"></p>`,
+      <button class="button feedback-entry" data-action="feedback">反馈问题</button>
+      <p class="version">ClassGrid v${esc(appVersion)}</p><p class="error" id="settings-error"></p>`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-settings">保存</button>');
+  }
+  function openFeedback(){
+    modal('反馈问题',`${field('问题描述','<textarea id="feedback-text" maxlength="1200" rows="5" placeholder="发生了什么？如何复现？"></textarea>')}
+      <p class="muted">仅附带应用和安卓版本。GitHub 反馈公开可见，提交前请检查文字和截图；提交需要登录。</p><p class="error" id="feedback-error"></p>`,
+      '<button class="button fill" data-action="feedback-share">分享文本</button><button class="button primary fill" data-action="feedback-github">打开 GitHub</button>');
+  }
+  function feedbackReport(){
+    const description=$('#feedback-text')?.value.trim();
+    if(!description){$('#feedback-error').textContent='请先填写问题描述';return null;}
+    return `## 问题\n${description}\n\n## 环境\nClassGrid v${appVersion}${androidVersion?`\nAndroid ${androidVersion}`:''}`;
   }
   function statusText(){return `${reminderStatus.notifications?'通知权限已开启':'通知权限未开启'} · ${reminderStatus.exact?'精确提醒可用':'按系统允许的时间提醒'}`;}
   function periodRow(p,index){return `<div class="period-row"><span class="period-number">${index+1}</span>
@@ -325,9 +387,16 @@
     if(action==='detail'){detail(button.dataset.id);return;}
     if(action==='marker'){detailMarker(button.dataset.id);return;}
     if(action==='edit-selected'){const id=selectedEvent?.courseId;openEditor(id);return;}
-    if(action==='add-session'){$('#sessions').insertAdjacentHTML('beforeend',sessionMarkup({},$('#sessions').children.length));return;}
+    if(action==='add-session'){$('#sessions').insertAdjacentHTML('beforeend',sessionMarkup({},$('#sessions').children.length,$('#sessions .s-room')?.value||''));return;}
     if(action==='remove-session'){if($('#sessions').children.length>1)button.closest('.session').remove();return;}
-    if(action==='color'){$$('#color-choice .swatch').forEach(x=>x.classList.remove('selected'));button.classList.add('selected');return;}
+    if(action==='color'){setCourseColor(button.dataset.color);$('#color-picker').hidden=true;return;}
+    if(action==='color-custom'){openColorPicker();return;}
+    if(action==='color-cancel'){$('#color-picker').hidden=true;return;}
+    if(action==='color-apply'){
+      const hex=$('#color-hex').value.trim().toUpperCase();
+      if(!/^#[0-9A-F]{6}$/.test(hex)){$('#color-error').textContent='请输入 #RRGGBB 格式的颜色';return;}
+      setCourseColor(hex);$('#color-picker').hidden=true;return;
+    }
     if(action==='save-course'){saveCourse();return;}
     if(action==='delete-course'){
       const id=$('#course-form').dataset.id,c=table.courses.find(x=>x.id===id);
@@ -431,7 +500,18 @@
     if(action==='backup'){exportFile('ClassGrid-backup.json','application/json',JSON.stringify(state));return;}
     if(action==='ics'){exportFile('ClassGrid-'+table.name+'.ics','text/calendar',M.toIcs(table));return;}
     if(action==='check-update'){if(native)native.checkForUpdates(true);else toast('请在安卓应用中检查更新');return;}
-    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
+    if(action==='feedback'){openFeedback();return;}
+    if(action==='feedback-github'||action==='feedback-share'){
+      const report=feedbackReport();if(!report)return;
+      if(native){
+        if(action==='feedback-github')native.openFeedback('问题反馈',report);
+        else native.shareFeedback(report);
+      }else if(action==='feedback-github')window.open('https://github.com/Mr-Y-LYB/classgrid-android/issues/new?title='+encodeURIComponent('问题反馈')+'&body='+encodeURIComponent(report),'_blank');
+      else if(navigator.share)navigator.share({text:report}).catch(()=>{});
+      else toast('请在安卓应用中分享');
+      return;
+    }
+    if(action==='changelog'){modal('更新说明','<div class="listrow"><div><strong>v1.2.4</strong><small>2026-10-22</small></div></div><p>每个上课时段可设置教室；增加预设色与自定义颜色；加入问题反馈入口。</p><div class="listrow"><div><strong>v1.2.3</strong><small>2026-10-21</small></div></div><p>更新下载增加备用地址，连接失败时自动切换；更新窗口加入进度动效。</p><div class="listrow"><div><strong>v1.2.2</strong><small>2026-10-21</small></div></div><p>修复课表背景显示，重排节次时间编辑页并校正设置图标。</p><div class="listrow"><div><strong>v1.2.1</strong><small>2026-10-21</small></div></div><p>更新时显示下载状态；失败后可重试或在浏览器下载，再次进入应用可重新收到提示。</p><div class="listrow"><div><strong>v1.2.0</strong><small>2026-10-21</small></div></div><p>整理更新弹窗和首页导航；每张课表可设置 JPG 背景并随 JSON 备份迁移；调整弹层与按钮的动效衔接。</p><div class="listrow"><div><strong>v1.1.0</strong><small>2026-10-21</small></div></div><p>调课与停课保留原时段提示；调整导航和设置布局；改进联网更新提示与操作动效。</p><div class="listrow"><div><strong>v1.0.0</strong><small>2026-10-21</small></div></div><p>周课表、课程编辑与调课；教务网页和文件导入；提醒、备份和日历导出。</p>');return;}
     if(action==='download-update'){
       if(pendingUpdate&&native){
         const action=$('[data-action="download-update"]');if(action){action.disabled=true;action.textContent='正在下载';}
@@ -456,7 +536,22 @@
     const target=e.target.closest('[data-action]');
     if(target&&!(target.classList.contains('overlay')&&target!==e.target))handleAction(target.dataset.action,target);
   });
+  document.addEventListener('pointerdown',e=>{
+    const field=e.target.closest('#color-field');if(!field||$('#color-picker')?.hidden)return;
+    field.setPointerCapture(e.pointerId);pickColorAt(e.clientX,e.clientY);
+  });
+  document.addEventListener('pointermove',e=>{
+    const field=$('#color-field');if(field?.hasPointerCapture(e.pointerId))pickColorAt(e.clientX,e.clientY);
+  });
   document.addEventListener('input',e=>{
+    if(e.target.id==='color-hue'){
+      pickerHsv.h=Number(e.target.value);updatePicker();return;
+    }
+    if(e.target.id==='color-hex'){
+      const hex=e.target.value.trim();$('#color-error').textContent='';
+      if(/^#[0-9a-f]{6}$/i.test(hex)){pickerHsv=hexToHsv(hex);updatePicker(false);}
+      return;
+    }
     if(e.target.id!=='background-fade')return;
     const fade=Number(e.target.value);
     $('#background-fade-value').textContent=`${fade}%`;
@@ -510,6 +605,7 @@
     preview.src=background;
   };
   window.onExportDone=data=>toast(data.ok?'文件已保存':'导出失败');
+  window.onFeedbackResult=data=>{if(data?.error)toast(data.error);};
   window.onReminderStatus=data=>{reminderStatus=data||reminderStatus;const el=$('#permission-status');if(el)el.textContent=statusText();};
   window.onUpdateCheck=data=>{
     if(data.error){if(data.manual)toast(data.error);return;}

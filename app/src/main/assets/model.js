@@ -1,7 +1,9 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.CGModel=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
   const SCHEMA=1;
-  const COLORS=['#477F8B','#5C70A9','#B77B5B','#658B70','#9475A0','#B08E49','#527A9C','#A26875'];
+  const COLORS=['#477F8B','#5C70A9','#B77B5B','#658B70','#9475A0','#B08E49','#527A9C','#A26875',
+    '#277F86','#36688E','#6553A5','#9A528E','#A45270','#A36343','#94751D','#498049',
+    '#267466','#3D5D9C','#795A9B','#9A5262','#8B6B41','#526D42','#356F7C','#715E83'];
   const DEFAULT_PERIODS=[['08:00','08:45'],['08:55','09:40'],['10:00','10:45'],['10:55','11:40'],['13:30','14:15'],['14:25','15:10'],['15:30','16:15'],['16:25','17:10'],['18:30','19:15'],['19:25','20:10'],['20:20','21:05'],['21:15','22:00']];
   const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
   const pad=n=>String(n).padStart(2,'0');
@@ -33,6 +35,13 @@
     if(ws.length>=3&&ws.every((v,i)=>i===0||v-ws[i-1]===1))return `${ws[0]}-${ws[ws.length-1]}`;
     return ws.join(',');
   }
+  function contrastText(hex){
+    if(!/^#[0-9a-f]{6}$/i.test(hex||''))return '#fff';
+    const rgb=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255)
+      .map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
+    const light=.2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];
+    return (1.05/(light+.05))>=((light+.05)/.055)?'#fff':'#101010';
+  }
   function validateState(raw){
     if(!raw||raw.schema!==SCHEMA||!Array.isArray(raw.tables)||raw.tables.length>50)throw Error('备份版本或内容无效');
     for(const t of raw.tables){
@@ -46,9 +55,12 @@
       if(t.backgroundFade!==undefined&&(!Number.isInteger(t.backgroundFade)||t.backgroundFade<0||t.backgroundFade>85))throw Error('背景透明度无效');
       for(const p of t.periods)if(!/^\d\d:\d\d$/.test(p.start)||!/^\d\d:\d\d$/.test(p.end)||p.start>=p.end)throw Error('节次时间无效');
       for(const c of t.courses){
-        if(!c||!c.id||!c.name||!Array.isArray(c.sessions)||c.sessions.length>30)throw Error('课程数据无效');
+        if(!c||!c.id||!c.name||!Array.isArray(c.sessions)||c.sessions.length>30||
+           (c.color!==undefined&&!/^#[0-9a-f]{6}$/i.test(c.color))||
+           (c.room!==undefined&&(typeof c.room!=='string'||c.room.length>100)))throw Error('课程数据无效');
         for(const s of c.sessions)if(!s.id||s.day<1||s.day>7||s.start<1||s.end<s.start||s.end>t.periods.length||
-           !Array.isArray(s.weeks)||s.weeks.some(w=>!Number.isInteger(w)||w<1||w>t.totalWeeks))throw Error('上课安排无效');
+           !Array.isArray(s.weeks)||s.weeks.some(w=>!Number.isInteger(w)||w<1||w>t.totalWeeks)||
+           (s.room!==undefined&&(typeof s.room!=='string'||s.room.length>100)))throw Error('上课安排无效');
       }
       for(const x of t.exceptions)if(!x||!x.id||!x.courseId||!['cancel','move','extra'].includes(x.type)||
         !/^\d{4}-\d\d-\d\d$/.test(x.sourceDate||x.targetDate||''))throw Error('临时调课数据无效');
@@ -76,15 +88,16 @@
       const change=changes.latest.get(`${session.id}@${date}`);
       if(change&&['cancel','move'].includes(change.type))continue;
       out.push({id:`${session.id}@${date}`,courseId:course.id,sessionId:session.id,date,day:session.day,start:session.start,end:session.end,
-        name:course.name,teacher:course.teacher||'',room:course.room||'',color:course.color||COLORS[0],moved:false});
+        name:course.name,teacher:course.teacher||'',room:session.room??course.room??'',color:course.color||COLORS[0],moved:false});
     }
     for(const change of changes.all){
       if(change.type!=='move'&&change.type!=='extra')continue;
       if(!change.targetDate||change.targetDate<from||change.targetDate>to)continue;
       const course=table.courses.find(x=>x.id===change.courseId);if(!course)continue;
+      const session=course.sessions.find(x=>x.id===change.sessionId);
       const day=(new Date(`${change.targetDate}T12:00:00`).getDay()+6)%7+1;
       out.push({id:change.id,courseId:course.id,sessionId:change.sessionId||'',date:change.targetDate,day,
-        start:change.start,end:change.end,name:course.name,teacher:course.teacher||'',room:change.room||course.room||'',
+        start:change.start,end:change.end,name:course.name,teacher:course.teacher||'',room:change.room??session?.room??course.room??'',
         color:course.color||COLORS[0],moved:true});
     }
     return out.sort((a,b)=>a.day-b.day||a.start-b.start||a.name.localeCompare(b.name,'zh'));
@@ -100,7 +113,7 @@
       if(change.type==='move'&&change.targetDate===change.sourceDate&&change.start===session.start&&change.end===session.end)continue;
       out.push({id:`marker:${change.id}`,exceptionId:change.id,courseId:course.id,sessionId:session.id,
         date:change.sourceDate,day:session.day,start:session.start,end:session.end,
-        name:course.name,room:course.room||'',color:course.color||COLORS[0],type:change.type,
+        name:course.name,room:session.room??course.room??'',color:course.color||COLORS[0],type:change.type,
         targetDate:change.targetDate||'',targetStart:change.start,targetEnd:change.end});
     }
     return out.sort((a,b)=>a.day-b.day||a.start-b.start||a.name.localeCompare(b.name,'zh'));
@@ -136,6 +149,6 @@
     const events=table?allOccurrences(table).map(e=>({id:e.id,at:eventTime(table,e)?.start||0,title:e.name,room:e.room})).filter(e=>e.at):[];
     return {enabled:!!state.settings.remindersEnabled,minutes:Number(state.settings.reminderMinutes??15),events};
   }
-  return {SCHEMA,COLORS,DEFAULT_PERIODS,uid,todayDate,monday,dateAdd,weekOf,dateFor,defaultTable,defaultState,parseWeeks,weeksLabel,
+  return {SCHEMA,COLORS,DEFAULT_PERIODS,uid,todayDate,monday,dateAdd,weekOf,dateFor,defaultTable,defaultState,parseWeeks,weeksLabel,contrastText,
     validateState,activeTable,occurrences,changeMarkers,conflicts,allOccurrences,eventTime,toIcs,reminderPayload};
 });

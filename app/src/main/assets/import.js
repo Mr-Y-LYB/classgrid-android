@@ -30,10 +30,10 @@
   function group(records){
     const groups=new Map();
     for(const r of records){
-      const key=[r.name,r.teacher,r.room].join('\u001f');
+      const key=[r.name,r.teacher].join('\u001f');
       if(!groups.has(key))groups.set(key,{id:M.uid(),name:r.name,teacher:r.teacher,room:r.room,
         color:M.COLORS[groups.size%M.COLORS.length],sessions:[]});
-      groups.get(key).sessions.push({id:M.uid(),day:r.day,start:r.start,end:r.end,weeks:r.weeks});
+      groups.get(key).sessions.push({id:M.uid(),day:r.day,start:r.start,end:r.end,weeks:r.weeks,room:r.room});
     }
     return [...groups.values()];
   }

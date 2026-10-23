@@ -1,1 +1,12 @@
-{"tag_name":"v2.0.0","body":"# ClassGrid v2.0.0\n\n- 重排导入课表和设置页面，课程自动分配颜色并支持自定义。\n- 修复课前提醒排程；新增提醒状态与一分钟测试。\n- 新增白天／夜间模式，显示每节课的上课及下课时间。\n- 修正课程卡片在屏幕宽度变化时的位置。\n\nAPK SHA-256：a091203455b985f55f5cc46f208b35fb1bd0f4cacdd46682e0600a66bd143f27","assets":[{"name":"ClassGrid-v2.0.0.apk","size":1044737,"digest":"sha256:a091203455b985f55f5cc46f208b35fb1bd0f4cacdd46682e0600a66bd143f27","browser_download_url":"https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v2.0.0/ClassGrid-v2.0.0.apk"}]}
+{
+  "tag_name": "v2.1.0",
+  "body": "# ClassGrid v2.1.0\n\n- 修复返回应用时可能漏掉已到点的课程提醒；记录已发送的提醒，避免重复通知。\n- 提醒排程不再等待联网检查更新；关闭界面或划掉最近任务后，由系统继续提醒。\n- “通知权限”可打开系统通知设置；提醒页显示下一门课程及最近发送时间。\n- 修复夜间模式关闭弹层时的浅色闪块，调整弹层开合动效，支持下拉标题栏关闭。\n- 调整导入课表页面，分开教务系统与本地文件入口。\n\n已在 Android 15 模拟器验证课程提醒、清除最近任务后的通知、补发与去重。尚未完成各厂商手机的实机验证。\n\nAPK SHA-256：788e6a5dcff1078cc1b422e5d866175f053573fc25741e3fc5a91c1db30a600c\n",
+  "assets": [
+    {
+      "name": "ClassGrid-v2.1.0.apk",
+      "size": 1047977,
+      "digest": "sha256:788e6a5dcff1078cc1b422e5d866175f053573fc25741e3fc5a91c1db30a600c",
+      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v2.1.0/ClassGrid-v2.1.0.apk"
+    }
+  ]
+}

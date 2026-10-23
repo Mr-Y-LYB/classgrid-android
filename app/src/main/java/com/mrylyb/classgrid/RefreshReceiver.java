@@ -6,6 +6,10 @@ import android.content.Intent;
 
 public class RefreshReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context context, Intent intent) {
-        ReminderScheduler.schedule(context);
+        PendingResult pending = goAsync();
+        new Thread(() -> {
+            try { ReminderScheduler.schedule(context.getApplicationContext()); }
+            finally { pending.finish(); }
+        }, "classgrid-reminder-refresh").start();
     }
 }

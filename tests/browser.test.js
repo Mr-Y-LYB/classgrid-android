@@ -10,7 +10,10 @@ const browser=spawn(edge,['--headless=new','--disable-gpu','--no-first-run','--n
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 let socket,id=0,pending=new Map(),errors=[];
 async function command(method,params={}){const key=++id;socket.send(JSON.stringify({id:key,method,params}));return new Promise((resolve,reject)=>pending.set(key,{resolve,reject}));}
-async function evaluate(expression){const r=await command('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
+async function evaluate(expression,settle=true){
+  // User actions wait for a dismissing sheet; dedicated rapid-tap tests bypass this.
+  if(settle&&expression.includes('.click()'))await command('Runtime.evaluate',{expression:'new Promise(resolve=>{if(document.querySelector(".overlay.closing"))setTimeout(resolve,220);else resolve()})',awaitPromise:true});
+  const r=await command('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
   if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;}
 async function checkCardAlignment(){
   const cards=await evaluate(`Array.from(document.querySelectorAll('.course-card')).map(card=>{
@@ -55,9 +58,12 @@ async function main(){
   const box=await evaluate('({page:document.documentElement.scrollWidth,view:innerWidth})');
   assert.ok(box.page<=box.view,`Horizontal overflow ${JSON.stringify(box)}`);
   await evaluate('document.querySelector("[data-action=import]").click()');
-  assert.equal(await evaluate('document.querySelectorAll(".import-source").length'),2);
-  assert.ok(await evaluate('document.querySelector(".import-other summary svg")!==null'));
-  assert.deepEqual(await evaluate('Array.from(document.querySelector(".import-sources").children).map(x=>x.querySelector(".source-copy strong").textContent)'),['沈阳化工大学','其他学校网页','本地文件']);
+  assert.equal(await evaluate('document.querySelectorAll(".import-source").length'),3);
+  assert.ok(await evaluate('document.querySelector("[data-action=other-school] svg")!==null'));
+  assert.deepEqual(await evaluate('Array.from(document.querySelectorAll(".import-page .source-copy strong")).map(x=>x.textContent)'),['沈阳化工大学','其他学校网页','选择课表文件']);
+  await evaluate('document.querySelector("[data-action=other-school]").click()');
+  assert.ok(await evaluate('document.querySelector("#portal-url")!==null'));
+  await evaluate('document.querySelector("[data-action=import]").click()');
   await command('Emulation.setDeviceMetricsOverride',{width:320,height:740,deviceScaleFactor:1,mobile:true});
   assert.equal(await evaluate('document.querySelector(".sheet-body").scrollWidth<=document.querySelector(".sheet-body").clientWidth'),true);
   await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
@@ -90,8 +96,11 @@ async function main(){
   await wait(220);
   await evaluate('document.querySelector("[data-action=settings]").click();document.querySelector(".settings-tabs [data-tab=reminder]").click();window.onReminderStatus({notifications:true,exact:false,scheduled:1,nextAt:Date.now()+60000,error:""})');
   assert.match(await evaluate('document.querySelector("#permission-status").textContent'),/精确提醒未开启/);
-  await evaluate('window.onReminderStatus({notifications:true,exact:true,scheduled:1,nextAt:Date.now()+60000,error:""})');
+  await evaluate('window.onReminderStatus({notifications:true,exact:true,scheduled:1,nextAt:Date.now()+60000,nextTitle:"大学英语",lastAt:Date.now()-60000,lastTitle:"电力系统分析基础",error:""})');
   assert.match(await evaluate('document.querySelector("#permission-status").textContent'),/已设置 1 条提醒/);
+  assert.match(await evaluate('document.querySelector("#permission-status").textContent'),/大学英语.*\n最近发送.*电力系统分析基础/);
+  await wait(220);
+  fs.writeFileSync(path.join(root,'dist','ui-reminder-v210.png'),Buffer.from((await command('Page.captureScreenshot',{format:'png'})).data,'base64'));
   await evaluate('window.onReminderTest({ok:true,exact:true,at:Date.now()+60000})');
   assert.match(await evaluate('document.querySelector("#reminder-test-status").textContent'),/1 分钟后/);
   await evaluate('document.querySelector("#reminder-enabled").checked=false;document.querySelector("[data-action=save-settings]").click()');await wait(220);
@@ -112,6 +121,7 @@ async function main(){
   const firstColor=await evaluate('JSON.parse(localStorage.getItem("classgrid-state")).tables[0].courses[0].color');
   assert.equal(await evaluate('document.querySelector(".course-card strong").textContent'),longCourse);
   await checkCardAlignment();
+  await wait(220);
   await evaluate('document.querySelector("#theme-switch").click()');await wait(260);
   assert.equal(await evaluate('document.documentElement.dataset.theme'),'dark');
   assert.equal(await evaluate('JSON.parse(localStorage.getItem("classgrid-state")).settings.theme'),'dark');
@@ -124,7 +134,36 @@ async function main(){
   await evaluate('document.querySelector("[data-action=import]").click()');await wait(220);
   const darkImportShot=await command('Page.captureScreenshot',{format:'png'});
   fs.writeFileSync(path.join(root,'dist','ui-dark-import.png'),Buffer.from(darkImportShot.data,'base64'));
-  await evaluate('document.querySelector("[data-action=close]").click()');await wait(220);
+  const closePoint=await evaluate('(()=>{const r=document.querySelector(".sheet-close").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  await command('Input.dispatchMouseEvent',{type:'mousePressed',...closePoint,button:'left',clickCount:1});
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".sheet-close")).backgroundColor'),'rgba(0, 0, 0, 0)');
+  await command('Input.dispatchMouseEvent',{type:'mouseReleased',...closePoint,button:'left',clickCount:1});
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".sheet")).opacity'),'1');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".overlay.closing")).pointerEvents'),'auto');
+  await evaluate('document.querySelector("#theme-switch").click()',false);
+  assert.equal(await evaluate('document.documentElement.dataset.theme'),'dark','Dismissal swallows taps on underlying controls');
+  await wait(220);
+  await evaluate('document.querySelector("[data-action=import]").click()');await wait(220);
+  const dragPoint=await evaluate('(()=>{const r=document.querySelector(".sheet-head").getBoundingClientRect();return {x:r.x+180,y:r.y+25}})()');
+  await command('Input.dispatchMouseEvent',{type:'mousePressed',...dragPoint,button:'left',clickCount:1});
+  await command('Input.dispatchMouseEvent',{type:'mouseMoved',x:dragPoint.x,y:dragPoint.y+100,button:'left',buttons:1});
+  await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:dragPoint.x,y:dragPoint.y+100,button:'left',clickCount:1});
+  await wait(220);
+  assert.equal(await evaluate('document.querySelector(".overlay")'),null,'Dragging the header dismisses the sheet');
+  await evaluate('document.querySelector("[data-action=import]").click()');await wait(220);
+  await command('Input.dispatchMouseEvent',{type:'mousePressed',...dragPoint,button:'left',clickCount:1});
+  await command('Input.dispatchMouseEvent',{type:'mouseMoved',x:dragPoint.x,y:dragPoint.y+25,button:'left',buttons:1});
+  await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:dragPoint.x,y:dragPoint.y+25,button:'left',clickCount:1});await wait(220);
+  assert.ok(await evaluate('document.querySelector(".sheet")!==null'),'Short drag snaps back');
+  await evaluate('document.querySelector(".sheet-close").click()');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".sheet")).animationName'),'sheetOut','Close still animates after a short drag');
+  await wait(220);
+  await command('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await evaluate('document.querySelector("[data-action=import]").click()');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".sheet")).animationName'),'none');
+  await evaluate('document.querySelector(".sheet-close").click()');await wait(30);
+  assert.equal(await evaluate('document.querySelector(".overlay")'),null);
+  await command('Emulation.setEmulatedMedia',{features:[]});
   await evaluate('document.querySelector("#theme-switch").click()');await wait(260);
   assert.equal(await evaluate('document.documentElement.dataset.theme'),'light');
   const cardFits=await evaluate('(()=>{const c=document.querySelector(".course-card"),t=c.querySelector("strong"),r=c.querySelector(".course-room");return {clamp:getComputedStyle(t).webkitLineClamp,font:getComputedStyle(t).fontSize,titleHeight:t.offsetHeight,roomHeight:r.offsetHeight,titleBottom:t.getBoundingClientRect().bottom,roomBottom:r.getBoundingClientRect().bottom,cardBottom:c.getBoundingClientRect().bottom,roomHidden:r.hidden}})()');
@@ -258,7 +297,7 @@ async function main(){
   await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:tap.x,y:tap.y,button:'left',clickCount:1});
   assert.equal(await evaluate('document.querySelector(".sheet-head h2").textContent'),'导入课表');
   assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-action=import]")).transform'),'none');
-  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.__reminderSync=[];window.Native={appVersion:()=>"2.0.0",androidVersion:()=>"15",loadState:()=>localStorage.getItem("classgrid-state")||"",saveState:(json)=>{localStorage.setItem("classgrid-state",json);return true},syncReminders:(json)=>window.__reminderSync.push(JSON.parse(json)),downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u]),openFeedback:(...a)=>window.__updateCalls.push(["feedback",...a]),shareFeedback:(t)=>window.__updateCalls.push(["share",t]),readBackgroundChunk:(token,offset,length)=>token==="test"?window.__pendingBackground.slice(offset,offset+length):"",clearPendingBackground:()=>{window.__pendingBackground=null}};'});
+  await command('Page.addScriptToEvaluateOnNewDocument',{source:'window.__updateCalls=[];window.__reminderSync=[];window.Native={appVersion:()=>"2.1.0",androidVersion:()=>"15",loadState:()=>localStorage.getItem("classgrid-state")||"",saveState:(json)=>{localStorage.setItem("classgrid-state",json);return true},syncReminders:(json)=>window.__reminderSync.push(JSON.parse(json)),downloadUpdate:(...a)=>window.__updateCalls.push(["download",...a]),openUpdateInBrowser:(u)=>window.__updateCalls.push(["browser",u]),openFeedback:(...a)=>window.__updateCalls.push(["feedback",...a]),shareFeedback:(t)=>window.__updateCalls.push(["share",t]),readBackgroundChunk:(token,offset,length)=>token==="test"?window.__pendingBackground.slice(offset,offset+length):"",clearPendingBackground:()=>{window.__pendingBackground=null}};'});
   await command('Page.navigate',{url:'file:///'+path.join(root,'app/src/main/assets/index.html').replace(/\\/g,'/')});
   await wait(700);
   assert.ok(await evaluate('window.__reminderSync.length>=1 && window.__reminderSync[0].events.length>0'));
@@ -306,11 +345,11 @@ async function main(){
   assert.equal(added.color,'#204340');
   assert.match(await evaluate('Array.from(document.querySelectorAll(".course-card")).filter(e=>e.textContent.includes("双教室课程")).map(e=>e.textContent).join("|")'),/A106.*B403/);
   await evaluate('document.querySelector("[data-action=settings]").click()');
-  assert.match(await evaluate('document.querySelector(".version").textContent'),/v2\.0\.0/);
+  assert.match(await evaluate('document.querySelector(".version").textContent'),/v2\.1\.0/);
   assert.equal(await evaluate('window.CG_CHANGELOG'),fs.readFileSync(path.join(root,'CHANGELOG.md'),'utf8'));
   await evaluate('document.querySelector(".settings-tabs [data-tab=data]").click();document.querySelector("[data-action=changelog]").click()');
   const versions=await evaluate('Array.from(document.querySelectorAll(".changelog-entry strong")).map(e=>e.textContent)');
-  assert.deepEqual(versions.slice(0,3),['v2.0.0','v1.2.6','v1.2.5']);
+  assert.deepEqual(versions.slice(0,4),['v2.1.0','v2.0.0','v1.2.6','v1.2.5']);
   assert.ok(!versions.includes('v1.2.7')&&!versions.includes('v1.2.8'));
   const changelogBody=await evaluate('document.querySelector(".sheet-body").textContent');
   assert.match(changelogBody,/课程卡片和颜色预览统一使用白色文字/);
@@ -323,7 +362,7 @@ async function main(){
   await evaluate('document.querySelector("[data-action=feedback]").click()');
   await evaluate('document.querySelector("#feedback-text").value="切换周次后颜色异常";document.querySelector("[data-action=feedback-github]").click()');
   assert.equal(await evaluate('window.__updateCalls.at(-1)[0]'),'feedback');
-  assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/ClassGrid v2\.0\.0/);
+  assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/ClassGrid v2\.1\.0/);
   assert.match(await evaluate('window.__updateCalls.at(-1)[2]'),/Android 15/);
   assert.doesNotMatch(await evaluate('window.__updateCalls.at(-1)[2]'),/A106|B403/);
   await evaluate('document.querySelector("[data-action=feedback-share]").click()');
@@ -350,6 +389,11 @@ async function main(){
   assert.match(await evaluate('document.querySelector("#import-course-preview").textContent'),/2-20双/);
   await evaluate('document.querySelector("[data-action=commit-import]").click()');
   assert.equal(await evaluate('Array.from(document.querySelectorAll(".course-card .week-badge")).some(e=>e.textContent==="双周")'),true);
+  await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await evaluate('(()=>{const s=CGModel.defaultState(),t=s.tables[0];t.periods=t.periods.slice(0,2);t.courses=[{id:"short",name:"两节课表",teacher:"",room:"A1",color:"#287c88",sessions:[{id:"short-session",day:1,start:2,end:2,weeks:[1]}]}];localStorage.setItem("classgrid-state",JSON.stringify(s));location.reload()})()');
+  await wait(500);
+  const shortGrid=await evaluate('(()=>{const a=document.querySelector(".period-label"),b=document.querySelectorAll(".period-label")[1];return b.getBoundingClientRect().top-a.getBoundingClientRect().top})()');
+  assert.equal(shortGrid,72,'Short timetables keep the same row height as the absolute course cards');
   await command('Emulation.setDeviceMetricsOverride',{width:960,height:372,deviceScaleFactor:1,mobile:false});
   await command('Page.navigate',{url:'file:///'+path.join(root,'design/icon-proposals/icon-options.svg').replace(/\\/g,'/')});
   await wait(300);

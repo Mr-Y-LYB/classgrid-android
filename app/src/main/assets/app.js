@@ -26,7 +26,7 @@
   const panelIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${panelIcons[name]}</svg>`;
   const themeIcon=dark=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${dark?'<path d="M20.5 14.1A8.5 8.5 0 0 1 9.9 3.5 8.5 8.5 0 1 0 20.5 14.1Z"/>':'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'}</svg>`;
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'2.0.0';
+  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'2.1.0';
   const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
   let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:false,exact:false,scheduled:0,nextAt:0,error:''};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
@@ -169,14 +169,23 @@
     $('#toast').classList.remove('show');
     document.body.classList.add('dialog-open');
     $('#modal-root').innerHTML=`<div class="overlay" data-action="close-overlay"><section class="sheet" role="dialog" aria-modal="true">
-      <div class="sheet-head"><h2>${esc(title)}</h2><button class="iconbtn" data-action="close" aria-label="关闭">×</button></div>
+      <div class="sheet-head"><span class="sheet-handle" aria-hidden="true"></span><h2>${esc(title)}</h2><button class="iconbtn sheet-close" data-action="close" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
       <div class="sheet-body">${body}</div>${actions?`<div class="sheet-actions">${actions}</div>`:''}</section></div>`;
+    const head=$('.sheet-head'),sheet=$('.sheet');let drag=null;
+    head.addEventListener('pointerdown',e=>{if(e.target.closest('button')||e.button!==0)return;drag={y:e.clientY,delta:0};head.setPointerCapture(e.pointerId);});
+    head.addEventListener('pointermove',e=>{if(!drag)return;drag.delta=Math.max(0,e.clientY-drag.y);sheet.style.animation='none';sheet.style.transform=`translateY(${drag.delta}px)`;});
+    const endDrag=()=>{if(!drag)return;const dismiss=drag.delta>65;drag=null;
+      if(dismiss){sheet.style.setProperty('--dismiss-start',sheet.style.transform);sheet.style.animation='';close();}
+      else {sheet.style.transition='transform .18s ease-out';sheet.style.transform='';setTimeout(()=>{sheet.style.transition='';},190);}};
+    head.addEventListener('pointerup',endDrag);head.addEventListener('pointercancel',endDrag);
   }
   function close(){
     const root=$('#modal-root'),overlay=root.firstElementChild;
-    if(!overlay)return;
+    if(!overlay||overlay.classList.contains('closing'))return;
+    const sheet=overlay.querySelector('.sheet');sheet.style.animation='';
+    if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
     overlay.classList.add('closing');
-    setTimeout(()=>{if(root.firstElementChild===overlay){root.innerHTML='';document.body.classList.remove('dialog-open');}},170);
+    setTimeout(()=>{if(root.firstElementChild===overlay){root.innerHTML='';document.body.classList.remove('dialog-open');}},matchMedia('(prefers-reduced-motion: reduce)').matches?0:200);
   }
   function field(label,input){return `<div class="field"><label>${label}</label>${input}</div>`;}
   function openWeek(){modal('选择周次',field('周次',`<input id="week-input" type="number" min="1" max="${table.totalWeeks}" value="${week}">`),
@@ -342,16 +351,19 @@
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-move">保存</button>');
   }
   function openImport(){
-    modal('导入课表',`<div class="import-page"><div class="import-sources">
+    modal('导入课表',`<div class="import-page"><div class="import-section-label">教务系统</div><div class="import-sources">
       <button type="button" class="import-source" data-action="school"><span class="source-icon">${panelIcon('school')}</span>
-      <span class="source-copy"><strong>沈阳化工大学</strong><small>登录教务系统后提取</small></span><span class="source-arrow">›</span></button>
-      <details class="import-other"><summary><span class="source-icon globe">${panelIcon('globe')}</span><span class="source-copy"><strong>其他学校网页</strong><small>输入教务系统网址</small></span><span class="source-arrow">⌄</span></summary>
-      <div class="import-other-body">${field('教务页面网址','<input id="portal-url" type="url" placeholder="https://..." inputmode="url">')}
-      <button class="button primary fill" data-action="custom-portal">打开网页</button></div></details>
+      <span class="source-copy"><strong>沈阳化工大学</strong><small>登录后提取个人课表</small></span><span class="source-arrow">›</span></button>
+      <button type="button" class="import-source" data-action="other-school"><span class="source-icon globe">${panelIcon('globe')}</span><span class="source-copy"><strong>其他学校网页</strong><small>使用教务系统网址</small></span><span class="source-arrow">›</span></button></div>
+      <div class="import-section-label">本地导入</div><div class="import-files">
       <button type="button" class="import-source" data-action="pick-file"><span class="source-icon file">${panelIcon('file')}</span>
-      <span class="source-copy"><strong>本地文件</strong><small>CSV、Excel、JSON</small></span><span class="source-arrow">›</span></button></div>
-      <div class="import-help">进入教务课表后点击“提取”；文件导入会先预览内容。</div>
-      <button type="button" class="import-template" data-action="template">${panelIcon('file')}<span>下载 CSV 模板</span><span>›</span></button></div>`);
+      <span class="source-copy"><strong>选择课表文件</strong><small>CSV / Excel / JSON 备份</small></span><span class="source-arrow">›</span></button>
+      <button type="button" class="import-template" data-action="template">${panelIcon('file')}<span>下载 CSV 模板</span><span>↓</span></button></div>
+      <p class="import-help">导入后先核对课程，再保存到课表。</p></div>`);
+  }
+  function openOtherSchool(){
+    modal('其他学校网页',field('教务系统网址','<input id="portal-url" type="url" placeholder="https://..." inputmode="url" autocapitalize="off" spellcheck="false">'),
+      '<button class="button fill" data-action="import">返回</button><button class="button primary fill" data-action="custom-portal">打开网页</button>');
   }
   function previewImport(result,source){
     pendingImport={...result,source};
@@ -390,6 +402,7 @@
     }catch(e){$('#import-error').textContent=e.message;$('#import-summary').hidden=true;$('#import-course-preview').innerHTML='';}
   }
   function openSettings(){
+    if(native?.reminderStatus){try{reminderStatus=JSON.parse(native.reminderStatus());}catch(e){}}
     modal('设置',`<div class="settings-page"><div class="settings-tabs" role="tablist" aria-label="设置分类">
       <button type="button" role="tab" aria-selected="true" class="selected" data-action="settings-tab" data-tab="table">课表</button>
       <button type="button" role="tab" aria-selected="false" data-action="settings-tab" data-tab="reminder">提醒</button>
@@ -402,7 +415,7 @@
       <section class="settings-panel" data-tab="reminder" hidden><h3 class="panel-heading">${panelIcon('alarm')}<span>课前提醒</span></h3>
       <div class="panel-card"><label class="reminder-switch"><span>开启提醒</span><input id="reminder-enabled" type="checkbox" ${state.settings.remindersEnabled?'checked':''}></label>
       ${field('提前分钟',`<input id="reminder-minutes" type="number" min="0" max="240" value="${state.settings.reminderMinutes??15}">`)}
-      <div class="permission-status" id="permission-status">${statusText()}</div>
+      <div class="permission-status" id="permission-status">${esc(statusText())}</div>
       <div class="permission-actions"><button class="button small" data-action="notification-permission">通知权限</button>
       <button class="button small" data-action="exact-permission">精确提醒</button></div>
       <button class="button small reminder-test" data-action="test-reminder">测试提醒（1 分钟后）</button><p class="muted reminder-test-status" id="reminder-test-status" role="status"></p></div></section>
@@ -427,15 +440,16 @@
     return `## 问题\n${description}\n\n## 环境\nClassGrid v${appVersion}${androidVersion?`\nAndroid ${androidVersion}`:''}`;
   }
   function statusText(){
+    const last=reminderStatus.lastAt?`\n最近发送 ${new Date(reminderStatus.lastAt).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} · ${reminderStatus.lastTitle||'课程提醒'}`:'';
     if(!state.settings.remindersEnabled)return '提醒已关闭';
     if(!reminderStatus.notifications)return '通知权限未开启，课程提醒无法显示';
     if(!reminderStatus.exact)return '精确提醒未开启，系统可能延迟通知；请点击下方“精确提醒”授权';
     if(reminderStatus.error)return reminderStatus.error;
     if(reminderStatus.scheduled>0&&reminderStatus.nextAt){
       const when=new Date(reminderStatus.nextAt);
-      return `已设置 ${reminderStatus.scheduled} 条提醒 · 下次 ${when.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}`;
+      return `已设置 ${reminderStatus.scheduled} 条提醒\n下次 ${when.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}${reminderStatus.nextTitle?' · '+reminderStatus.nextTitle:''}${last}`;
     }
-    return '未来 21 天暂无可提前触发的课程提醒';
+    return '未来 21 天暂无待发送的课程提醒'+last;
   }
   function periodRow(p,index){return `<div class="period-row"><span class="period-number">${index+1}</span>
     <input class="period-start" type="time" value="${esc(p.start)}" aria-label="第 ${index+1} 节开始时间">
@@ -551,6 +565,7 @@
       table.exceptions.push(change);save();close();render();toast(`已调至 ${date} 第 ${start}-${end} 节`);return;
     }
     if(action==='import'){openImport();return;}
+    if(action==='other-school'){openOtherSchool();return;}
     if(action==='school'){if(native)native.openPortal('https://jws.syuct.edu.cn/');else toast('请在安卓应用中打开');return;}
     if(action==='custom-portal'){
       const url=$('#portal-url').value.trim();try{const u=new URL(url);if(u.protocol!=='https:')throw 0;if(native)native.openPortal(url);else toast('请在安卓应用中打开');}
@@ -665,6 +680,7 @@
   }
   const $$=s=>[...document.querySelectorAll(s)];
   document.addEventListener('click',e=>{
+    if($('.overlay.closing')){e.preventDefault();return;}
     const target=e.target.closest('[data-action]');
     if(target&&!(target.classList.contains('overlay')&&target!==e.target))handleAction(target.dataset.action,target);
   });
@@ -748,6 +764,7 @@
   };
   window.onExportDone=data=>toast(data.ok?'文件已保存':'导出失败');
   window.onFeedbackResult=data=>{if(data?.error)toast(data.error);};
+  window.onReminderAction=data=>{if(data.message)toast(data.message);};
   window.onReminderStatus=data=>{
     reminderStatus=data||reminderStatus;
     const el=$('#permission-status');if(el)el.textContent=statusText();

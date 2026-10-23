@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
     private static final int MAX_FILE_BYTES = 20 * 1024 * 1024;
     private WebView web;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ExecutorService networkWorker = Executors.newSingleThreadExecutor();
     private UpdateManager updater;
     private String pendingExport;
     private String pendingBackgroundTableId;
@@ -65,9 +66,11 @@ public class MainActivity extends Activity {
         getWindow().setNavigationBarColor(Color.rgb(247, 249, 251));
         getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-        updater = new UpdateManager(this, worker, this::callback);
+        updater = new UpdateManager(this, networkWorker, this::callback);
         connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         web = new WebView(this);
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+            WebView.setWebContentsDebuggingEnabled(true);
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(true);
@@ -135,6 +138,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         worker.shutdown();
+        networkWorker.shutdown();
         if (web != null) web.destroy();
         super.onDestroy();
     }
@@ -249,19 +253,39 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void testReminder() {
             worker.execute(() -> callback("onReminderTest", ReminderScheduler.scheduleTest(MainActivity.this).toString()));
         }
+        @JavascriptInterface public String reminderStatus() {
+            return ReminderScheduler.status(MainActivity.this).toString();
+        }
         @JavascriptInterface public void requestReminderPermission() {
             runOnUiThread(() -> {
+                android.content.SharedPreferences preferences = getSharedPreferences("permissions", MODE_PRIVATE);
                 if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED)
+                    != PackageManager.PERMISSION_GRANTED && (!preferences.getBoolean("notificationsAsked", false)
+                    || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS))) {
+                    preferences.edit().putBoolean("notificationsAsked", true).apply();
                     requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION);
-                else callback("onReminderStatus", ReminderScheduler.status(MainActivity.this).toString());
+                } else {
+                    try { startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())); }
+                    catch (RuntimeException unavailable) {
+                        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:" + getPackageName())));
+                    }
+                }
             });
         }
         @JavascriptInterface public void openExactAlarmSettings() {
-            if (Build.VERSION.SDK_INT >= 31) runOnUiThread(() -> {
-                Intent i = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                    Uri.parse("package:" + getPackageName()));
-                startActivity(i);
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT < 31) {
+                    callback("onReminderAction", "{\"message\":\"当前系统已允许精确提醒\"}");
+                    return;
+                }
+                try { startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    Uri.parse("package:" + getPackageName()))); }
+                catch (RuntimeException unavailable) {
+                    startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName())));
+                }
             });
         }
         @JavascriptInterface public void checkForUpdates(boolean manual) { updater.check(manual); }
@@ -442,7 +466,9 @@ public class MainActivity extends Activity {
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grants) {
         super.onRequestPermissionsResult(requestCode, permissions, grants);
-        if (requestCode == NOTIFICATION_PERMISSION)
+        if (requestCode == NOTIFICATION_PERMISSION) worker.execute(() -> {
+            ReminderScheduler.schedule(this);
             callback("onReminderStatus", ReminderScheduler.status(this).toString());
+        });
     }
 }

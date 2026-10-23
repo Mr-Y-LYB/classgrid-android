@@ -131,3 +131,36 @@ button{-webkit-tap-highlight-color:transparent}.button,.iconbtn,.navbtn,.todaybt
 @media(prefers-reduced-motion:reduce){:root .shell,:root .top,:root .weekday-row,:root .grid-scroll,:root .period-label,:root .slot,:root .bottom,:root .sheet,:root .button,:root .field input,:root .field select,:root .field textarea,:root .panel-card,:root .import-source,:root .import-other{transition:none}}
 
 .changelog-entry{padding-bottom:12px}.changelog-entry .listrow{padding:10px 0 7px}.changelog-entry .update-list{margin:8px 0 0;font-size:12px;gap:6px;color:inherit}
+
+/* Sheets stay opaque while moving; pressed feedback ends before dismissal. */
+.timetable{grid-auto-rows:72px;align-content:start}
+.sheet-head{position:relative;padding-top:22px;touch-action:none;user-select:none}
+.sheet-handle{position:absolute;width:30px;height:4px;top:8px;left:calc(50% - 15px);border-radius:4px;background:#ccd9df}
+.sheet-close svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.sheet-close:active{background:transparent!important;filter:none;opacity:.65}
+.overlay.closing{pointer-events:auto;animation:overlayOut .19s ease-in both}
+.overlay.closing .sheet{animation:sheetOut .19s cubic-bezier(.4,0,1,1) both}
+.overlay.closing .sheet-close{background:transparent!important;filter:none;opacity:1;transition:none}
+.sheet{animation:sheetIn .2s cubic-bezier(.2,.75,.3,1) both}
+@keyframes sheetIn{from{transform:translateY(60px)}to{transform:translateY(0)}}
+@keyframes sheetOut{from{transform:var(--dismiss-start,translateY(0))}to{transform:translateY(100%)}}
+:root[data-theme=dark] .iconbtn:active,:root[data-theme=dark] .plain:active{background:#304a5b}
+:root[data-theme=dark] .sheet-handle{background:#536a79}
+.permission-status{white-space:pre-line;line-height:1.65}
+.import-section-label{font-size:11px;font-weight:650;color:#738b98;margin:0 2px 8px}
+.import-section-label:not(:first-child){margin-top:20px}
+.import-sources,.import-files{display:block;border:1px solid #dce8ec;border-radius:16px;overflow:hidden;background:#fff}
+.import-page .import-source{border:0;border-radius:0;box-shadow:none;min-height:76px;padding:13px 14px;background:transparent}
+.import-sources .import-source+.import-source{border-top:1px solid #e8eff2}
+.import-page .source-icon{width:40px;height:40px;border-radius:12px}
+.import-page .source-copy{gap:5px}.import-page .source-copy strong{font-size:14px;font-weight:650}
+.import-page .import-template{border-top:1px solid #e8eff2;border-radius:0;min-height:42px;padding:0 15px;background:#f5f9fa;font-size:11px}
+.import-page .import-template svg{width:16px;height:16px}.import-page .import-help{margin:12px 2px 0;text-align:center;font-size:10px}
+:root[data-theme=dark] .import-sources,:root[data-theme=dark] .import-files{background:#233746;border-color:#3b5361}
+:root[data-theme=dark] .import-sources .import-source+.import-source,:root[data-theme=dark] .import-template{border-color:#3b5361}
+:root[data-theme=dark] .import-page .import-template{background:#28424e;color:#b7e6e3}
+:root[data-theme=dark] .import-section-label{color:#9eb5c0}
+:root[data-theme=dark] .source-icon{background:#29505a;color:#9bd9db}
+:root[data-theme=dark] .source-icon.globe{background:#2c4e47;color:#b2dccd}
+:root[data-theme=dark] .source-icon.file{background:#354962;color:#c0d1f0}
+@media(prefers-reduced-motion:reduce){.sheet,.overlay.closing,.overlay.closing .sheet{animation:none}.sheet{transition:none!important}}

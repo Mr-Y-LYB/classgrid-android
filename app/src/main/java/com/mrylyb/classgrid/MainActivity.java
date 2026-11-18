@@ -62,8 +62,8 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(247, 249, 251));
-        getWindow().setNavigationBarColor(Color.rgb(247, 249, 251));
+        getWindow().setStatusBarColor(Color.rgb(248, 249, 255));
+        getWindow().setNavigationBarColor(Color.rgb(248, 249, 255));
         getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         updater = new UpdateManager(this, networkWorker, this::callback);
@@ -136,6 +136,14 @@ public class MainActivity extends Activity {
         super.onPause();
     }
 
+    @Override public void onBackPressed() {
+        if (web != null && pageReady) {
+            web.evaluateJavascript("window.onBackRequested ? window.onBackRequested() : false", handled -> {
+                if (!"true".equals(handled)) MainActivity.super.onBackPressed();
+            });
+        } else super.onBackPressed();
+    }
+
     @Override protected void onDestroy() {
         worker.shutdown();
         networkWorker.shutdown();
@@ -146,8 +154,8 @@ public class MainActivity extends Activity {
     public class Bridge {
         @JavascriptInterface public void setTheme(boolean dark) {
             runOnUiThread(() -> {
-                getWindow().setStatusBarColor(dark ? Color.rgb(16, 28, 41) : Color.rgb(247, 249, 251));
-                getWindow().setNavigationBarColor(dark ? Color.rgb(16, 28, 41) : Color.rgb(247, 249, 251));
+                getWindow().setStatusBarColor(dark ? Color.rgb(17, 19, 24) : Color.rgb(248, 249, 255));
+                getWindow().setNavigationBarColor(dark ? Color.rgb(17, 19, 24) : Color.rgb(248, 249, 255));
                 getWindow().getDecorView().setSystemUiVisibility(dark ? 0 :
                     android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
                     android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);

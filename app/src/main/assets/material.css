@@ -1,0 +1,149 @@
+/* Local Material 3 theme. No network fonts or runtime component downloads. */
+:root{--md-primary:#006b9a;--md-on-primary:#fff;--md-container:#cee5ff;--md-on-container:#06324b;--md-surface:#f8f9ff;--md-panel:#eef1f9;--md-raised:#e8edf6;--md-input:#f8f9ff;--md-text:#191c20;--md-muted:#56616c;--md-outline:#c4cbd4;--md-line:#e1e6ee;--md-error:#a83539;--md-danger:#ffdadb;--md-shadow:0 3px 9px #12334a17}
+:root[data-theme=dark]{--md-primary:#8fcdff;--md-on-primary:#00344e;--md-container:#164c6e;--md-on-container:#cee5ff;--md-surface:#111318;--md-panel:#1b2028;--md-raised:#252b35;--md-input:#171c23;--md-text:#e3e5ec;--md-muted:#b4beca;--md-outline:#454f5d;--md-line:#2a333e;--md-error:#ffb3b7;--md-danger:#613138;--md-shadow:0 3px 12px #0003}
+[hidden]{display:none!important}
+:root[data-theme]{background:var(--md-surface);color:var(--md-text);font-family:system-ui,-apple-system,"Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer;touch-action:manipulation}
+:root[data-theme] .shell,:root[data-theme] .top{background:var(--md-surface);color:var(--md-text)}
+.home-content{flex:1;min-height:0;display:flex;flex-direction:column}.top{padding:18px 18px 12px}.brandtitle{font-size:20px;font-weight:650;letter-spacing:0}.brandmark{width:32px;height:32px;padding:0;border-radius:10px}
+:root[data-theme] .brandtitle,:root[data-theme] .table-name,:root[data-theme] .iconbtn{color:var(--md-text)}
+:root[data-theme] .manage-btn,:root[data-theme] .weekpill{border:0;background:var(--md-panel);color:var(--md-on-container);border-radius:24px;min-height:44px;padding:9px 14px;box-shadow:none}
+.toolbar{padding:0 14px 14px;gap:4px}.table-name{font-size:14px}.weeknav{gap:0}.weeknav .iconbtn{min-width:32px}.weekpill{font-size:13px}
+:root[data-theme] .todaybtn{min-height:40px;border-radius:22px;background:var(--md-container);color:var(--md-on-container)}
+:root[data-theme] .weekday-row{background:var(--md-surface);border-color:var(--md-line)}
+:root[data-theme] .weekday-row .day,:root[data-theme] .weekday-row .day b{color:var(--md-muted)}
+:root[data-theme] .weekday-row .today b,:root[data-theme] .weekday-row .today span{color:var(--md-primary)}
+:root[data-theme] .theme-switch{color:var(--md-primary);border-color:var(--md-line)}
+:root[data-theme] .grid-scroll{background:var(--md-surface)}
+:root[data-theme] .period-label{color:var(--md-muted);border-color:var(--md-line)}
+:root[data-theme] .slot{border-color:var(--md-line)}
+:root[data-theme] .slot.todaycol{background:color-mix(in srgb,var(--md-container) 23%,transparent)}
+:root[data-theme] .empty-tip{color:var(--md-muted)}
+.grid-scroll{padding-bottom:0}.timetable{padding-bottom:100px}.course-card{border-radius:10px;box-shadow:none}
+.course-card:not(.change-marker) strong,.course-card:not(.change-marker) .course-room,.color-sample{ text-shadow:none }
+:root[data-theme] .bottom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:auto;min-height:80px;padding:8px 16px calc(8px + env(safe-area-inset-bottom));background:var(--md-panel);border:0;gap:0;align-items:center}
+:root[data-theme] .navbtn{flex:1;min-width:0;min-height:60px;gap:3px;color:var(--md-muted);font-size:12px;font-weight:550;border-radius:0;background:transparent}
+:root[data-theme] .navbtn svg{width:64px;height:32px;padding:5px 20px;background:transparent;border:0;border-radius:24px;color:inherit;box-shadow:none}
+:root[data-theme] .navbtn.selected{color:var(--md-text);background:transparent}
+:root[data-theme] .navbtn.selected svg{background:var(--md-container);color:var(--md-on-container)}
+:root[data-theme] .navbtn.action-import:not(.selected) svg{background:transparent;border:0;color:inherit}
+.fab{position:absolute;right:20px;bottom:calc(96px + env(safe-area-inset-bottom));width:56px;height:56px;border:0;border-radius:18px;background:var(--md-container);color:var(--md-on-container);box-shadow:var(--md-shadow);display:grid;place-items:center;z-index:2}
+.fab svg{width:26px;height:26px}.fab:active{background:color-mix(in srgb,var(--md-container) 85%,var(--md-primary))}.shell{position:relative}
+.main-page{flex:1;min-height:0;display:flex;flex-direction:column}.shell:has(.main-page:not([hidden]))>.top{display:none}
+.page-heading{padding:24px 24px 18px;flex:none}.page-heading>span{display:block;color:var(--md-muted);font-size:13px;font-weight:600;margin-bottom:6px}.page-heading h1{font-size:30px;line-height:1.2;letter-spacing:0;margin:0;font-weight:650}
+.page-body{flex:1;min-height:0;padding:8px 20px 20px}.page-actions{display:flex;gap:12px;padding:12px 20px;background:var(--md-surface);border-top:1px solid var(--md-line);flex:none}
+:root[data-theme] .sheet{background:var(--md-panel);color:var(--md-text);border-radius:28px 28px 0 0;box-shadow:var(--md-shadow);max-height:min(92dvh,900px)}
+.sheet-head{padding:26px 24px 18px;min-height:72px;gap:12px}.sheet-head h2{font-size:21px;font-weight:600}.sheet-body{padding:18px 20px;min-height:0}.sheet-actions{padding:14px 20px calc(14px + env(safe-area-inset-bottom));gap:10px}
+.sheet-handle{background:var(--md-outline)!important;width:32px;left:calc(50% - 16px);height:4px}.sheet-back{order:-1}
+:root[data-theme] .sheet-head,:root[data-theme] .sheet-actions,:root[data-theme] .listrow{border-color:var(--md-line)}
+:root[data-theme] .sheet-head h2,:root[data-theme] .section-title,:root[data-theme] .panel-heading,:root[data-theme] .listrow strong{color:var(--md-text)}
+:root[data-theme] .button{background:var(--md-raised);color:var(--md-on-container);border-radius:24px;min-height:48px;padding:12px 18px;font-size:14px;font-weight:600;box-shadow:none}
+:root[data-theme] .button.primary{background:var(--md-primary);color:var(--md-on-primary)}
+:root[data-theme] .button.danger{background:var(--md-danger);color:var(--md-error)}
+:root[data-theme] .button.small{min-height:40px;font-size:12px;padding:9px 13px}
+:root[data-theme] .field label,:root[data-theme] .label,:root[data-theme] .muted,:root[data-theme] .listrow small,:root[data-theme] .subtle{color:var(--md-muted)}
+.field{gap:7px;margin-bottom:16px}.field label{font-size:12px;font-weight:550}
+:root[data-theme] .field input,:root[data-theme] .field select,:root[data-theme] .field textarea,:root[data-theme] .input,:root[data-theme] .period-row input,:root[data-theme] .panel-card .field input{background:var(--md-input);color:var(--md-text);border:1px solid var(--md-outline);border-radius:12px;min-height:48px;padding:12px;font-size:14px}
+:root[data-theme] .field input:focus,:root[data-theme] .field select:focus,:root[data-theme] .field textarea:focus{border-color:var(--md-primary);box-shadow:0 0 0 1px var(--md-primary)}
+:root[data-theme] .panel-card,:root[data-theme] .session,:root[data-theme] .settings-list,:root[data-theme] .preview-item{background:var(--md-panel);color:var(--md-text);border:0;border-radius:20px}
+.panel-card{padding:18px 16px 5px}.session{padding:16px;margin-bottom:14px}.session-head{margin-bottom:16px}.panel-heading{margin:18px 3px 12px;font-size:14px}
+:root[data-theme] .panel-card .field label,:root[data-theme] .session-head,:root[data-theme] .preview-item span{color:var(--md-muted)}
+:root[data-theme] .settings-link,:root[data-theme] .settings-list button,:root[data-theme] .reminder-switch{color:var(--md-text);border-color:var(--md-line)}
+.settings-list button{min-height:60px!important;padding:0 18px!important;font-size:14px!important}.settings-link{min-height:56px}.settings-panel .version{margin:18px 3px 0}
+:root[data-theme] .settings-tabs,:root[data-theme] .segmented{border:1px solid var(--md-outline);border-radius:28px;padding:3px;background:transparent;gap:0}
+:root[data-theme] .settings-tabs button,:root[data-theme] .segmented label{color:var(--md-muted);min-height:40px;border-radius:24px;font-size:12px}
+:root[data-theme] .settings-tabs button.selected,:root[data-theme] .segmented label:has(input:checked){color:var(--md-on-container);background:var(--md-container);box-shadow:none}
+:root[data-theme] .permission-status,:root[data-theme] .note{background:var(--md-raised);color:var(--md-muted);border-radius:14px;padding:12px;line-height:1.7}
+:root[data-theme] .note.warn{background:var(--md-danger);color:var(--md-error)}
+.reminder-switch{font-size:14px}.reminder-switch input{appearance:none;width:44px;height:26px;border-radius:18px;border:2px solid var(--md-outline);position:relative;background:var(--md-raised)}
+.reminder-switch input:after{content:'';width:16px;height:16px;position:absolute;left:3px;top:3px;border-radius:50%;background:var(--md-muted);transition:transform .2s}.reminder-switch input:checked{background:var(--md-primary);border-color:var(--md-primary)}.reminder-switch input:checked:after{background:var(--md-on-primary);transform:translateX(17px)}
+.permission-actions{margin-top:14px}.reminder-test{margin:0 0 8px}.reminder-test-status:empty{display:none}
+:root[data-theme] .panel-heading svg,:root[data-theme] .settings-link svg,:root[data-theme] .settings-list svg{color:var(--md-primary);width:21px;height:21px}
+:root[data-theme] .import-sources,:root[data-theme] .import-files{background:var(--md-panel);border:0;border-radius:24px}
+:root[data-theme] .import-page .import-source{min-height:88px;background:transparent;color:var(--md-text);padding:16px;border:0}
+:root[data-theme] .import-page .import-source+.import-source,:root[data-theme] .import-page .import-template{border-top:1px solid var(--md-line)}
+:root[data-theme] .import-page .source-icon,:root[data-theme] .source-icon.file,:root[data-theme] .source-icon.globe{width:44px;height:44px;border-radius:16px;background:var(--md-container);color:var(--md-on-container)}
+:root[data-theme] .source-copy small,:root[data-theme] .import-section-label,:root[data-theme] .import-help,:root[data-theme] .version{color:var(--md-muted)}
+.import-page .source-copy strong{font-size:15px}.import-section-label{font-size:13px;font-weight:550;margin:6px 12px 12px}.import-section-label:not(:first-child){margin-top:28px}
+:root[data-theme] .import-page .import-template{background:transparent;color:var(--md-primary);min-height:52px;padding:0 18px;font-size:12px}.import-page .import-help{margin:18px 8px;text-align:left;font-size:12px}
+:root[data-theme] .import-page .import-template{min-height:88px;gap:12px;padding:16px;text-align:left;font-weight:400}
+.import-template .template-copy{display:flex;flex:1;flex-direction:column;gap:5px;min-width:0}
+.import-template .template-copy strong{font-size:14px;font-weight:600;color:var(--md-text)}
+.import-template .template-copy small{font-size:11px;font-weight:400;color:var(--md-muted)}
+.import-template .template-download{display:flex;align-items:center;justify-content:center;gap:7px;flex:none;min-height:44px;border-radius:24px;padding:10px 14px;background:var(--md-container);color:var(--md-on-container);font-size:13px;font-weight:600}
+.import-template .template-download svg{width:18px;height:18px}.import-template .template-download span{font-size:13px!important;font-weight:600!important}
+:root[data-theme] .import-template .template-download{flex:0 0 auto}
+:root[data-theme] .import-template .template-download svg{color:currentColor}
+:root[data-theme] .import-page .import-template:active{background:var(--md-raised);filter:none}
+:root[data-theme] .color-picker{background:transparent}.color-picker-value{align-items:flex-end}.color-sample{height:48px;width:56px}.color-ring{width:48px;height:48px;border:0}.color-ring:before{width:20px;height:20px}
+:root[data-theme] .color-picker-title,:root[data-theme] .color-ring{color:var(--md-text)}
+:root[data-theme] .period-row{border-color:var(--md-line);background:transparent}
+:root[data-theme] .period-row:nth-child(odd){background:var(--md-raised)}
+:root[data-theme] .period-number,:root[data-theme] .period-column-head{color:var(--md-muted)}
+.period-row{gap:6px}.period-row input{padding:9px!important;min-width:0}
+:root[data-theme] .error{color:var(--md-error)}
+:root[data-theme] .update-badge{background:var(--md-container);color:var(--md-on-container)}
+:root[data-theme] .update-browser{color:var(--md-primary)}
+:root[data-theme] .update-head{border-color:var(--md-line)}
+:root[data-theme] .update-list{color:var(--md-text);line-height:1.65;font-size:14px}
+:root[data-theme] #toast{background:var(--md-text);color:var(--md-surface);border-radius:14px}
+.confirm-overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:#10182066;padding:24px}
+.discard-dialog{width:min(100%,340px);padding:24px;background:var(--md-panel);color:var(--md-text);border-radius:28px;box-shadow:var(--md-shadow)}.discard-dialog h2{font-size:21px;margin:0 0 16px}.discard-dialog p{font-size:14px;color:var(--md-muted);margin-bottom:24px}.discard-dialog .button{padding:12px 10px;font-size:13px}
+:root[data-theme] .iconbtn:active,:root[data-theme] .settings-list button:active,:root[data-theme] .import-source:active{background:var(--md-raised);filter:none}
+button:focus-visible{outline:2px solid var(--md-primary);outline-offset:2px}.sheet-body{scrollbar-width:thin}
+@media(max-width:350px){.top{padding-inline:12px}.brandtitle{font-size:18px}.toolbar{padding-inline:10px}.table-name{max-width:29%}.manage-btn{font-size:11px}.page-heading{padding:20px 18px 16px}.page-body,.sheet-body{padding-inline:14px}.sheet-actions,.page-actions{padding-inline:14px}.settings-tabs button{font-size:11px!important}.fab{right:14px}.source-copy small{font-size:10px}.row{gap:7px}.button{padding-inline:12px!important}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Form sheets have their own stacking and filled Material fields. */
+#modal-root{z-index:20}.confirm-overlay{z-index:30}#toast{z-index:40}
+body.dialog-open .fab{visibility:hidden;pointer-events:none}
+:root[data-theme] .course-editor-sheet{background:var(--md-panel)}
+.course-editor-sheet .sheet-head{padding:26px 20px 16px;min-height:70px;border-bottom:0}
+.course-editor-sheet .sheet-head h2{font-size:21px;line-height:1.3;font-weight:600}
+.course-editor-sheet .sheet-body{padding-top:6px;padding-bottom:20px}
+.course-basics{display:flex;flex-direction:column;gap:14px;margin:0 0 24px}
+.course-name-row{display:grid;grid-template-columns:minmax(0,1fr) 48px;align-items:center;gap:12px}
+.course-editor-sheet #course-form .field{position:relative;gap:0;margin:0 0 14px;min-width:0}
+.course-editor-sheet #course-form .course-basics>.field,.course-editor-sheet #course-form .course-name-row>.field{margin:0}
+.course-editor-sheet #course-form .field>label{position:absolute;top:8px;left:13px;right:8px;font-size:11px;line-height:15px;font-weight:500;color:var(--md-muted);pointer-events:none;z-index:1;overflow:hidden;white-space:nowrap}
+:root[data-theme] .course-editor-sheet #course-form .field>input,:root[data-theme] .course-editor-sheet #course-form .field>select{height:60px;min-height:60px;padding:25px 12px 8px;border:0;border-bottom:1px solid var(--md-outline);border-radius:12px 12px 3px 3px;background:var(--md-input);font-size:15px;line-height:22px;color:var(--md-text)}
+:root[data-theme] .course-editor-sheet #course-form .field>input:focus,:root[data-theme] .course-editor-sheet #course-form .field>select:focus{box-shadow:0 1px 0 var(--md-primary);border-color:var(--md-primary)}
+.course-editor-sheet .course-name-row .color-ring{width:48px;height:48px;min-height:48px;margin:0;padding:4px;align-self:center;box-shadow:none;border:0}
+.course-editor-sheet .course-name-row .color-ring span{border:3px solid var(--md-panel);box-shadow:none}
+.course-time-heading{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:14px;font-weight:600;line-height:22px}
+.course-time-heading svg{width:20px;height:20px;color:var(--md-primary)}
+:root[data-theme] .course-editor-sheet .session{padding:16px 14px 2px;border:1px solid var(--md-line);border-radius:20px;background:var(--md-raised);margin:0 0 12px}
+.course-editor-sheet .session-head{min-height:24px;margin-bottom:14px;font-size:13px;line-height:20px}
+:root[data-theme] .course-editor-sheet .session-head .button{background:transparent;color:var(--md-error);min-height:32px;padding:5px 10px;font-size:12px}
+.course-editor-sheet .session .row{gap:10px}
+:root[data-theme] .course-editor-sheet .add-session-button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--md-outline);background:transparent;color:var(--md-primary);min-height:44px;font-size:13px}
+.add-session-button svg{width:18px;height:18px}
+.course-editor-sheet .sheet-actions .button{min-height:48px;font-size:14px;line-height:20px}
+@media(max-width:350px){.course-editor-sheet .session{padding-inline:10px}.course-editor-sheet .session .row{gap:7px}.course-editor-sheet #course-form .field>label{font-size:10px;left:10px}:root[data-theme] .course-editor-sheet #course-form .field>input,:root[data-theme] .course-editor-sheet #course-form .field>select{font-size:13px;padding-inline:10px}.course-name-row{gap:10px}}
+
+.md-control-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--md-outline);border-radius:12px;background:var(--md-input);color:var(--md-text);font-size:14px;text-align:left;font-weight:400}
+.md-control-trigger svg{width:18px;height:18px;flex:none;color:var(--md-muted)}.md-control-value{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.md-control-trigger:focus-visible,.md-control-trigger[aria-expanded=true]{outline:2px solid var(--md-primary);outline-offset:-1px}
+:root[data-theme] .course-editor-sheet #course-form .field>.md-control-trigger{height:60px;padding:25px 12px 8px;border:0;border-bottom:1px solid var(--md-outline);border-radius:12px 12px 3px 3px;background:var(--md-input);color:var(--md-text);font-size:15px;line-height:22px}
+.period-row .md-control-trigger{padding:9px 6px;justify-content:center;font-size:13px;min-height:48px}.period-row .md-control-trigger svg{width:14px;height:14px}
+.md-picker-overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#080e175c;padding:24px;animation:mdPickerFade .16s ease-out both}
+.md-picker-dialog{width:min(100%,352px);max-height:calc(100dvh - 48px);display:flex;flex-direction:column;background:var(--md-panel);color:var(--md-text);border-radius:28px;padding:24px 0 12px;box-shadow:0 6px 24px #0002;overflow:hidden;animation:mdPickerEnter .2s cubic-bezier(.2,0,0,1) both}
+.md-picker-dialog h2{font-size:21px;font-weight:600;line-height:1.35;margin:0;padding:0 24px 18px;color:var(--md-text)}
+.md-picker-body{overflow:auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin}
+.md-choice-list{padding:0 12px}.md-choice{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:56px;gap:16px;padding:14px 16px;text-align:left;border:0;border-radius:16px;background:transparent;color:var(--md-text);font-size:15px;line-height:1.45;font-weight:400}
+.md-choice.chosen{background:var(--md-container);color:var(--md-on-container)}.md-choice:active{background:var(--md-raised)}
+.md-radio{width:20px;height:20px;flex:none;border:2px solid var(--md-muted);border-radius:50%;display:grid;place-items:center}.chosen .md-radio{border-color:var(--md-primary)}.chosen .md-radio:after{content:'';width:10px;height:10px;border-radius:50%;background:var(--md-primary)}
+.md-picker-actions{padding:14px 20px 0;display:flex;gap:8px;justify-content:flex-end;flex:none}
+.md-dialog-button{border:0;border-radius:24px;background:transparent;color:var(--md-primary);min-height:44px;padding:10px 18px;font-size:14px;font-weight:600}.md-dialog-button.primary{background:var(--md-primary);color:var(--md-on-primary)}
+.md-calendar-selected{padding:0 24px 14px;font-size:23px;line-height:1.3;color:var(--md-on-container)}
+.md-calendar-nav{display:flex;align-items:center;justify-content:space-between;padding:0 16px 10px;gap:8px}.md-calendar-nav button{display:grid;place-items:center;border:0;min-width:40px;min-height:40px;border-radius:24px;background:transparent;color:var(--md-text)}.md-calendar-nav button svg{width:18px;height:18px}.md-calendar-nav button:first-child svg{transform:rotate(180deg)}.md-calendar-nav .md-month-title{padding:0 12px;font-size:14px;font-weight:600}
+.md-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;padding:0 16px}.md-calendar-grid>*{aspect-ratio:1;min-width:0;display:grid;place-items:center;font-size:13px}.md-calendar-grid .md-weekday{color:var(--md-muted);font-size:11px}
+.md-calendar-grid button{border:1px solid transparent;border-radius:50%;background:transparent;color:var(--md-text);padding:0}.md-calendar-grid button.is-today{border-color:var(--md-primary)}.md-calendar-grid button.chosen{background:var(--md-primary);color:var(--md-on-primary)}
+.md-month-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px 24px}.md-month-grid button{min-height:44px;border:0;border-radius:24px;background:var(--md-raised);color:var(--md-text)}.md-month-grid button.chosen{background:var(--md-container);color:var(--md-on-container)}
+.md-time-fields{display:flex;align-items:flex-end;gap:10px;padding:0 24px}.md-time-fields label{display:flex;flex:1;min-width:0;flex-direction:column;gap:8px;color:var(--md-muted);font-size:12px}
+.md-time-fields input{width:100%;height:80px;border:1px solid var(--md-outline);border-radius:14px;background:var(--md-raised);color:var(--md-text);font-size:38px;line-height:1.2;text-align:center;outline:none;padding:8px}.md-time-fields input:focus{border-color:var(--md-primary);box-shadow:0 0 0 1px var(--md-primary);background:var(--md-container);color:var(--md-on-container)}
+.md-time-colon{font-size:36px;line-height:80px;color:var(--md-text)}.md-time-hint{font-size:12px;color:var(--md-muted);margin:14px 24px 0}.md-picker-dialog .error{margin:10px 24px 0;font-size:12px}.md-picker-dialog .error:empty{display:none}
+.picker-closing{animation:mdPickerFade .15s ease-in reverse both;pointer-events:auto}.picker-closing .md-picker-dialog{animation:none}
+body.picker-open .fab{visibility:hidden;pointer-events:none}
+@keyframes mdPickerFade{from{background:#080e1700}to{background:#080e175c}}@keyframes mdPickerEnter{from{opacity:.65;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:350px){.md-picker-overlay{padding:18px}.md-picker-dialog{max-height:calc(100dvh - 36px)}.md-picker-dialog h2{font-size:20px}.md-choice{font-size:14px}.md-calendar-grid{padding-inline:12px}.period-row .md-control-trigger{gap:3px;font-size:12px}.period-row .md-control-trigger svg{display:none}}

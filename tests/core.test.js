@@ -110,3 +110,14 @@ assert.deepEqual(sessions.find(s=>s.name==='电力系统分析基础').weeks,[1,
 assert.equal(sessions.find(s=>s.name==='电力电子技术').start,2);
 assert.equal(sessions.find(s=>s.name==='电力电子技术').day,2);
 console.log('ClassGrid core tests passed');
+
+const current=I.parseCell('电力系统分析基础\n必修\n周一第3,4节{第1-11周}\n教师\n应星楼403',1,3,30);
+assert.deepEqual(current,[{name:'电力系统分析基础',teacher:'教师',room:'应星楼403',day:1,start:3,end:4,weeks:[1,2,3,4,5,6,7,8,9,10,11]}]);
+const two=I.parseCell('高等数学\n必修\n周二第3,4节{第2-12周(双)}\n甲\nA101\n大学英语\n选修\n周二第3,4节{第1-11周(单)}\n乙\nB202',2,3,30);
+assert.equal(two.length,2);assert.equal(two[1].name,'大学英语');assert.equal(two[0].room,'A101');
+assert.deepEqual(two[0].weeks,[2,4,6,8,10,12]);assert.deepEqual(two[1].weeks,[1,3,5,7,9,11]);
+const wrapped=I.parseCell('电机拖动基础\n必修\n周五第7,8节{第1-\n12周(单)}\n教师\n应星楼106',5,7,30);
+assert.equal(wrapped[0].end,8);assert.deepEqual(wrapped[0].weeks,[1,3,5,7,9,11]);
+const discrete=I.parseCell('实验课\n必修\n周三第1,3,4节{第2,4,6周}\n教师\nA101',3,1,30);
+assert.deepEqual(discrete.map(x=>[x.start,x.end]),[[1,1],[3,4]]);
+console.log('Current SYUCT schedule syntax tests passed');

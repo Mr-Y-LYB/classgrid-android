@@ -26,8 +26,10 @@
   const panelIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${panelIcons[name]}</svg>`;
   const themeIcon=dark=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${dark?'<path d="M20.5 14.1A8.5 8.5 0 0 1 9.9 3.5 8.5 8.5 0 1 0 20.5 14.1Z"/>':'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'}</svg>`;
   const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'2.1.0';
+  const appVersion=native&&typeof native.appVersion==='function'?native.appVersion():'2.1.1';
   const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
+  let page='home',settingsTab='table',dirtyTarget=null,dirtyInitial='',pendingLeave=null;
+  const draftBaselines=new WeakMap();
   let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:false,exact:false,scheduled:0,nextAt:0,error:''};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
   catch(e){state=M.defaultState();}
@@ -54,7 +56,7 @@
   function applyTheme(){
     const dark=state.settings.theme==='dark';
     document.documentElement.dataset.theme=dark?'dark':'light';
-    const meta=$('meta[name="theme-color"]');if(meta)meta.content=dark?'#101c29':'#f7f9fb';
+    const meta=$('meta[name="theme-color"]');if(meta)meta.content=dark?'#111318':'#f8f9ff';
     const switcher=$('#theme-switch');if(switcher){switcher.innerHTML=themeIcon(dark);switcher.setAttribute('aria-label',dark?'切换到白天模式':'切换到夜间模式');switcher.title=dark?'白天模式':'夜间模式';}
     if(native?.setTheme)native.setTheme(dark);
   }
@@ -79,7 +81,7 @@
     $('#app').innerHTML=`<main class="shell">
       <div class="top"><div class="brand"><img class="brandmark" src="icon-a.svg" alt="" aria-hidden="true"><span class="brandtitle">ClassGrid</span></div>
         <button class="manage-btn" data-action="manage">切换／新建</button></div>
-      <div class="toolbar"><strong class="table-name" title="${esc(table.name)}">${esc(table.name)}</strong>
+      <div class="home-content"><div class="toolbar"><strong class="table-name" title="${esc(table.name)}">${esc(table.name)}</strong>
         <div class="weeknav"><button class="iconbtn" data-action="prev" aria-label="上一周">‹</button>
           <button class="weekpill" data-action="week">第 ${week} 周</button>
           <button class="iconbtn" data-action="next" aria-label="下一周">›</button>
@@ -89,15 +91,16 @@
         `<div class="period-label" style="height:72px;grid-row:${n+1};grid-column:1"><b>${n+1}</b><small>${esc(p.start)}</small><small class="period-end">${esc(p.end)}</small></div>`+
         days.map((_,i)=>`<div class="slot ${dates[i]===today?'todaycol':''}" style="height:72px;grid-row:${n+1};grid-column:${i+2}"></div>`).join('')).join('')}
         ${occurrences.length||markers.length?'':`<div class="empty-tip">本周暂无课程</div>`}</div></div>
+      </div><section id="page-root" class="main-page" hidden></section><button class="fab" data-action="add" aria-label="添加课程">${navIcon('add')}</button>
       <nav class="bottom" aria-label="主导航"><button class="navbtn selected" data-action="home" aria-current="page">${navIcon('home')}<span>课表</span></button>
-        <button class="navbtn action-add" data-action="add">${navIcon('add')}<span>添加课程</span></button>
-        <button class="navbtn action-import" data-action="import">${navIcon('import')}<span>导入课表</span></button>
+        <button class="navbtn action-import" data-action="import">${navIcon('import')}<span>导入</span></button>
         <button class="navbtn" data-action="settings">${navIcon('settings')}<span>设置</span></button></nav>
       </main>`;
     positionCards(occurrences,markers,conflicts);
     let touch=null;const scroller=$('.grid-scroll');
     applyBackground(table);
     applyTheme();
+    if(page==='import')openImport();else if(page==='settings')openSettings();
     scroller.addEventListener('touchstart',e=>{touch={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     scroller.addEventListener('touchend',e=>{if(!touch)return;const dx=e.changedTouches[0].clientX-touch.x,dy=e.changedTouches[0].clientY-touch.y;
       if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.35){week+=dx<0?1:-1;render();}touch=null;},{passive:true});
@@ -165,28 +168,82 @@
       title.style.maxHeight=titleSpace+'px';title.style.overflowY='auto';title.style.touchAction='pan-y';
     }
   }
+  function fingerprint(root){
+    if(!root)return '';
+    return JSON.stringify([...root.querySelectorAll('input,select,textarea')].filter(x=>!x.closest('#color-picker')&&x.id!=='background-fade').map(x=>[x.id||x.className,x.type==='checkbox'||x.type==='radio'?x.checked:x.value]))+'|'+(root.querySelector('#color-choice')?.dataset.color||'');
+  }
+  function watchDraft(root){dirtyTarget=root;dirtyInitial=fingerprint(root);draftBaselines.set(root,dirtyInitial);queueMicrotask(()=>{if(dirtyTarget===root){dirtyInitial=fingerprint(root);draftBaselines.set(root,dirtyInitial);}});}
+  function isDirty(includePage=false){const sheet=$('#modal-root .sheet');return (includePage?[sheet,$('#page-root')]:[sheet||$('#page-root')]).some(root=>root?.isConnected&&!root.hidden&&draftBaselines.has(root)&&fingerprint(root)!==draftBaselines.get(root));}
+  function leave(after,includePage=false){
+    if($('#discard-confirm'))return;
+    if(!isDirty(includePage)){after();return;}
+    pendingLeave=after;
+    const dialog=document.createElement('div');dialog.id='discard-confirm';dialog.className='confirm-overlay';
+    dialog.innerHTML='<section class="discard-dialog" role="alertdialog" aria-modal="true" aria-labelledby="discard-title"><h2 id="discard-title">放弃未保存的更改？</h2><p>本次修改尚未保存。</p><div class="row"><button class="button fill" data-action="keep-editing">继续编辑</button><button class="button primary fill" data-action="discard-changes">放弃更改</button></div></section>';
+    document.body.appendChild(dialog);dialog.querySelector('button').focus();
+  }
+  function navigation(to){
+    if(page===to&&!$('#modal-root').firstElementChild)return;
+    leave(()=>{close();page=to;dirtyTarget=null;render();},true);
+  }
+  function pagePanel(title,body,actions=''){
+    page=title==='导入课表'?'import':'settings';
+    // Returning from a subpage discards only that subpage's saved/explicitly cancelled draft.
+    $('#modal-root').innerHTML='';document.body.classList.remove('dialog-open');
+    $('.home-content').hidden=true;$('.fab').hidden=true;$('#page-root').hidden=false;
+    $('#page-root').innerHTML=`<header class="page-heading"><span>ClassGrid</span><h1>${esc(title)}</h1></header><div class="sheet-body page-body">${body}</div>${actions?`<div class="page-actions">${actions}</div>`:''}`;
+    $$('.bottom .navbtn').forEach(button=>{const active=button.dataset.action===page;button.classList.toggle('selected',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
+    $('.manage-btn').hidden=true;
+    if(page==='settings')watchDraft($('#page-root'));else dirtyTarget=null;
+  }
   function modal(title,body,actions=''){
-    $('#toast').classList.remove('show');
-    document.body.classList.add('dialog-open');
-    $('#modal-root').innerHTML=`<div class="overlay" data-action="close-overlay"><section class="sheet" role="dialog" aria-modal="true">
-      <div class="sheet-head"><span class="sheet-handle" aria-hidden="true"></span><h2>${esc(title)}</h2><button class="iconbtn sheet-close" data-action="close" aria-label="关闭"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    $('#toast').classList.remove('show');document.body.classList.add('dialog-open');
+    $('#modal-root').innerHTML=`<div class="overlay" data-action="close-overlay"><section class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+      <div class="sheet-head"><span class="sheet-handle" aria-hidden="true"></span><h2>${esc(title)}</h2><button class="iconbtn sheet-back" data-action="color-cancel" aria-label="返回课程编辑" hidden>‹</button></div>
       <div class="sheet-body">${body}</div>${actions?`<div class="sheet-actions">${actions}</div>`:''}</section></div>`;
-    const head=$('.sheet-head'),sheet=$('.sheet');let drag=null;
-    head.addEventListener('pointerdown',e=>{if(e.target.closest('button')||e.button!==0)return;drag={y:e.clientY,delta:0};head.setPointerCapture(e.pointerId);});
-    head.addEventListener('pointermove',e=>{if(!drag)return;drag.delta=Math.max(0,e.clientY-drag.y);sheet.style.animation='none';sheet.style.transform=`translateY(${drag.delta}px)`;});
-    const endDrag=()=>{if(!drag)return;const dismiss=drag.delta>65;drag=null;
-      if(dismiss){sheet.style.setProperty('--dismiss-start',sheet.style.transform);sheet.style.animation='';close();}
-      else {sheet.style.transition='transform .18s ease-out';sheet.style.transform='';setTimeout(()=>{sheet.style.transition='';},190);}};
-    head.addEventListener('pointerup',endDrag);head.addEventListener('pointercancel',endDrag);
+    const sheet=$('#modal-root .sheet'),head=sheet.querySelector('.sheet-head'),content=sheet.querySelector('.sheet-body');let drag=null;
+    const finish=cancel=>{
+      if(!drag)return;const dismiss=!cancel&&drag.delta>65;drag=null;
+      sheet.style.transition=matchMedia('(prefers-reduced-motion: reduce)').matches?'none':'transform .2s ease';sheet.style.transform='';
+      if(dismiss){sheet.style.setProperty('--dismiss-start',`translateY(${Math.max(0,parseFloat(sheet.dataset.dragOffset)||0)}px)`);requestDismiss();}
+    };
+    for(const area of [head,content]){
+      area.addEventListener('pointerdown',e=>{
+        if(e.button!==0||e.target.closest('button,input,textarea,select,a,#color-field,#color-hue')||(area===content&&content.scrollTop>0))return;
+        drag={id:e.pointerId,x:e.clientX,y:e.clientY,delta:0,area,captured:false};
+        if(area===head){area.setPointerCapture(e.pointerId);drag.captured=true;}
+      });
+      area.addEventListener('pointermove',e=>{
+        if(!drag||drag.id!==e.pointerId)return;
+        const dy=e.clientY-drag.y,dx=e.clientX-drag.x;
+        if(!drag.captured){if(dy<0||Math.abs(dx)>Math.abs(dy)){drag=null;return;}if(dy<8)return;area.setPointerCapture(e.pointerId);drag.captured=true;}
+        e.preventDefault();drag.delta=Math.max(0,dy);sheet.dataset.dragOffset=String(drag.delta);sheet.style.animation='none';sheet.style.transition='none';sheet.style.transform=`translateY(${drag.delta}px)`;
+      },{passive:false});
+      area.addEventListener('pointerup',()=>finish(false));area.addEventListener('pointercancel',()=>finish(true));
+      if(area===content){let touch=null;
+        area.addEventListener('touchstart',e=>{touch=content.scrollTop<=0&&!e.target.closest('button,input,select,textarea,a,#color-field')?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});
+        area.addEventListener('touchmove',e=>{if(touch&&e.touches[0].clientY>touch.y+8&&Math.abs(e.touches[0].clientX-touch.x)<e.touches[0].clientY-touch.y)e.preventDefault();},{passive:false});
+      }
+    }
+    watchDraft(sheet);
+  }
+  function requestDismiss(){
+    if($('#color-picker')&&!$('#color-picker').hidden){closeColorPicker();return;}
+    leave(()=>{close();dirtyTarget=null;});
   }
   function close(){
     const root=$('#modal-root'),overlay=root.firstElementChild;
     if(!overlay||overlay.classList.contains('closing'))return;
-    const sheet=overlay.querySelector('.sheet');sheet.style.animation='';
+    const sheet=overlay.querySelector('.sheet');sheet.style.animation='';sheet.style.transform='';
     if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
     overlay.classList.add('closing');
     setTimeout(()=>{if(root.firstElementChild===overlay){root.innerHTML='';document.body.classList.remove('dialog-open');}},matchMedia('(prefers-reduced-motion: reduce)').matches?0:200);
   }
+  window.onBackRequested=()=>{
+    if($('#discard-confirm')){handleAction('keep-editing');return true;}
+    if($('#modal-root').firstElementChild){requestDismiss();return true;}
+    if(page!=='home'){navigation('home');return true;}return false;
+  };
   function field(label,input){return `<div class="field"><label>${label}</label>${input}</div>`;}
   function openWeek(){modal('选择周次',field('周次',`<input id="week-input" type="number" min="1" max="${table.totalWeeks}" value="${week}">`),
     '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="set-week">确定</button>');}
@@ -246,7 +303,7 @@
   function closeColorPicker(){
     $('#color-picker').hidden=true;$('#course-form').hidden=false;
     $('.sheet-head h2').textContent=$('#course-form').dataset.id?'编辑课程':'添加课程';
-    const back=$('.sheet-head .iconbtn');back.textContent='×';back.dataset.action='close';
+    const back=$('#modal-root .sheet-back');back.hidden=true;
     $('.sheet-actions').innerHTML=editorActions;
     $('.sheet-body').scrollTop=editorScrollTop;
   }
@@ -256,7 +313,7 @@
     editorActions=$('.sheet-actions').innerHTML;
     $('#course-form').hidden=true;$('#color-picker').hidden=false;
     $('.sheet-head h2').textContent='选择颜色';
-    const back=$('.sheet-head .iconbtn');back.textContent='‹';back.dataset.action='color-cancel';
+    const back=$('#modal-root .sheet-back');back.hidden=false;
     $('.sheet-actions').innerHTML='<button class="button fill" data-action="color-cancel">返回</button><button class="button primary fill" data-action="color-apply">选用颜色</button>';
     $('.sheet-body').scrollTop=0;$('#color-error').textContent='';updatePicker();
   }
@@ -270,18 +327,24 @@
     const course=table.courses.find(x=>x.id===courseId);
     const chosenColor=course?.color||M.nextCourseColor(table.courses);
     modal(course?'编辑课程':'添加课程',`<div id="course-form" data-id="${course?esc(course.id):''}">
-      <div class="course-name-row">${field('课程名称',`<input id="c-name" maxlength="100" value="${esc(course?.name||'')}" placeholder="课程名称">`)}
+      <section class="course-basics" aria-label="课程信息"><div class="course-name-row">${field('课程名称',`<input id="c-name" maxlength="100" value="${esc(course?.name||'')}" autocomplete="off">`)}
       <button type="button" class="color-ring" id="color-choice" data-color="${esc(chosenColor)}" data-auto="${course?'false':'true'}" data-action="color-custom" aria-label="选择课程颜色，当前 ${esc(chosenColor.toUpperCase())}" title="自定义颜色"><span id="current-color" style="background:${esc(chosenColor)}"></span></button></div>
-      ${field('教师',`<input id="c-teacher" maxlength="60" value="${esc(course?.teacher||'')}">`)}
-      <div class="section-title">上课时间</div><div id="sessions">${(course?.sessions.length?course.sessions:[{}]).map((s,i)=>sessionMarkup(s,i,course?.room||'')).join('')}</div>
+      ${field('教师',`<input id="c-teacher" maxlength="60" value="${esc(course?.teacher||'')}">`)}</section>
+      <div class="section-title course-time-heading">${panelIcon('clock')}<span>上课安排</span></div><div id="sessions">${(course?.sessions.length?course.sessions:[{}]).map((s,i)=>sessionMarkup(s,i,course?.room||'')).join('')}</div>
       ${course&&table.exceptions.some(x=>x.courseId===course.id)?`<div class="section-title">临时变更</div>${table.exceptions.filter(x=>x.courseId===course.id).map(x=>
         `<div class="listrow"><small>${esc(x.sourceDate)} · ${x.type==='cancel'?'停课':`调至 ${esc(x.targetDate)}`}</small><button class="button small" data-action="remove-exception" data-id="${esc(x.id)}">恢复</button></div>`).join('')}`:''}
-      <button class="button small" data-action="add-session">＋ 添加时段</button><p class="error" id="editor-error"></p></div>
+      <button class="button add-session-button" data-action="add-session">${navIcon('add')}<span>添加上课时段</span></button><p class="error" id="editor-error"></p></div>
       <div class="color-picker color-picker-page" id="color-picker" hidden><div class="color-picker-title">拖动选色，或输入 HEX 色值</div>
       <div class="color-picker-controls"><div class="color-field" id="color-field"><span id="color-point"></span></div><input id="color-hue" type="range" min="0" max="359" value="180" aria-label="色相"></div>
       <div class="color-picker-value"><div class="color-sample" id="color-preview">Aa</div>${field('HEX',`<input id="color-hex" maxlength="7" inputmode="text" value="${esc(chosenColor)}" aria-label="十六进制颜色">`)}</div>
       <p class="error" id="color-error"></p></div>`,
       `${course?'<button class="button danger" data-action="delete-course">删除</button>':''}<button class="button fill" data-action="close">取消</button><button class="button primary fill" id="save-course" data-action="save-course">保存</button>`);
+    $('#modal-root .sheet').classList.add('course-editor-sheet');
+    renumberSessions();
+  }
+  function renumberSessions(){
+    const sessions=[...document.querySelectorAll('#sessions .session')];
+    sessions.forEach((box,i)=>{box.querySelector('.session-head>span').textContent=`时段 ${i+1}`;box.querySelector('[data-action="remove-session"]').hidden=sessions.length===1;});
   }
   function readSessions(){
     return [...document.querySelectorAll('#sessions .session')].map((box,index)=>{
@@ -318,6 +381,9 @@
   function detail(eventId){
     const event=eventsById.get(eventId);if(!event)return;selectedEvent=event;selectedMarker=null;
     const course=table.courses.find(x=>x.id===event.courseId);if(!course)return;
+    const scheduledWeeks=course.sessions.find(s=>s.id===event.sessionId)?.weeks||[];
+    const parity=M.weekPattern(scheduledWeeks).mode;
+    const weeksText=parity==='odd'||parity==='even'?`第 ${[...new Set(scheduledWeeks)].sort((a,b)=>a-b).join('、')} 周`:`第 ${M.weeksLabel(scheduledWeeks)} 周`;
     if(event.moved){
       const change=table.exceptions.find(x=>x.id===event.id),session=course.sessions.find(x=>x.id===event.sessionId);
       if(change&&session)selectedMarker={exceptionId:change.id,courseId:course.id,sessionId:session.id,date:change.sourceDate,
@@ -326,7 +392,7 @@
     const info=`<div class="note" style="border-left:5px solid ${esc(event.color)}"><strong>${esc(course.name)}</strong><br>
       周${days[event.day-1]} · 第 ${event.start}-${event.end} 节 · ${esc(event.date)}<br>
       ${esc(event.room||'未填写教室')} ${event.teacher?'· '+esc(event.teacher):''}</div>
-      <div class="muted">${event.moved?'本次课程已调课':`常规周次：${esc(M.weeksLabel(course.sessions.find(s=>s.id===event.sessionId)?.weeks||[]))}`}</div>`;
+      <div class="muted">${event.moved?'本次课程已调课':`常规周次：${esc(weeksText)}`}</div>`;
     modal('课程详情',info,`<button class="button" data-action="edit-selected">编辑整门课</button>
       ${event.moved?(selectedMarker?'<button class="button" data-action="move-occurrence">修改调课</button>':'')+'<button class="button" data-action="restore-occurrence">恢复本次</button>':
         '<button class="button" data-action="cancel-occurrence">本次停课</button><button class="button" data-action="move-occurrence">本次调课</button>'}`);
@@ -351,14 +417,14 @@
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-move">保存</button>');
   }
   function openImport(){
-    modal('导入课表',`<div class="import-page"><div class="import-section-label">教务系统</div><div class="import-sources">
+    pagePanel('导入课表',`<div class="import-page"><div class="import-section-label">教务系统</div><div class="import-sources">
       <button type="button" class="import-source" data-action="school"><span class="source-icon">${panelIcon('school')}</span>
       <span class="source-copy"><strong>沈阳化工大学</strong><small>登录后提取个人课表</small></span><span class="source-arrow">›</span></button>
       <button type="button" class="import-source" data-action="other-school"><span class="source-icon globe">${panelIcon('globe')}</span><span class="source-copy"><strong>其他学校网页</strong><small>使用教务系统网址</small></span><span class="source-arrow">›</span></button></div>
       <div class="import-section-label">本地导入</div><div class="import-files">
       <button type="button" class="import-source" data-action="pick-file"><span class="source-icon file">${panelIcon('file')}</span>
       <span class="source-copy"><strong>选择课表文件</strong><small>CSV / Excel / JSON 备份</small></span><span class="source-arrow">›</span></button>
-      <button type="button" class="import-template" data-action="template">${panelIcon('file')}<span>下载 CSV 模板</span><span>↓</span></button></div>
+      <button type="button" class="import-template" data-action="template" aria-label="下载 CSV 课程模板"><span class="template-copy"><strong>CSV 模板</strong><small>填写课程、教室和周次</small></span><span class="template-download">${navIcon('import')}<span>下载</span></span></button></div>
       <p class="import-help">导入后先核对课程，再保存到课表。</p></div>`);
   }
   function openOtherSchool(){
@@ -367,11 +433,12 @@
   }
   function previewImport(result,source){
     pendingImport={...result,source};
+    const suggestedWeeks=result.courses.reduce((max,c)=>c.sessions.reduce((n,s)=>Math.max(n,...s.weeks),max),table.totalWeeks);
     modal('核对导入',`<div class="note" id="import-summary"></div>
       ${result.issues?.length?`<div class="note warn">${result.issues.slice(0,5).map(esc).join('<br>')}</div>`:''}
       <div class="segmented"><label><input type="radio" name="import-mode" value="new" checked>新课表</label><label><input type="radio" name="import-mode" value="append">追加</label><label><input type="radio" name="import-mode" value="replace">替换</label></div>
       <div class="row" style="margin-top:12px">${field('新课表第一周周一',`<input id="import-date" type="date" value="${esc(table.startDate)}">`)}
-      ${field('总周数',`<input id="import-weeks" type="number" min="1" max="30" value="${table.totalWeeks}">`)}</div>
+      ${field('总周数',`<input id="import-weeks" type="number" min="1" max="30" value="${suggestedWeeks}">`)}</div>
       ${field('导入课程的周次',`<select id="import-week-mode"><option value="source">保留文件周次</option><option value="all">全部周数</option><option value="odd">单周</option><option value="even">双周</option></select>`)}
       <p class="error" id="import-error" role="alert"></p><div class="course-preview" id="import-course-preview"></div>`,
       '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="commit-import">导入</button>');
@@ -403,7 +470,7 @@
   }
   function openSettings(){
     if(native?.reminderStatus){try{reminderStatus=JSON.parse(native.reminderStatus());}catch(e){}}
-    modal('设置',`<div class="settings-page"><div class="settings-tabs" role="tablist" aria-label="设置分类">
+    pagePanel('设置',`<div class="settings-page"><div class="settings-tabs" role="tablist" aria-label="设置分类">
       <button type="button" role="tab" aria-selected="true" class="selected" data-action="settings-tab" data-tab="table">课表</button>
       <button type="button" role="tab" aria-selected="false" data-action="settings-tab" data-tab="reminder">提醒</button>
       <button type="button" role="tab" aria-selected="false" data-action="settings-tab" data-tab="data">数据与应用</button></div>
@@ -427,7 +494,14 @@
       <button data-action="changelog">${panelIcon('file')}<span>更新说明</span><b>›</b></button>
       <button data-action="feedback">${panelIcon('message')}<span>反馈问题</span><b>›</b></button></div>
       <p class="version">ClassGrid v${esc(appVersion)}</p></section><p class="error" id="settings-error" role="alert"></p></div>`,
-      '<button class="button fill" data-action="close">取消</button><button class="button primary fill" data-action="save-settings">保存</button>');
+      '<button class="button fill" data-action="cancel-settings">取消更改</button><button class="button primary fill" data-action="save-settings">保存</button>');
+    selectSettingsTab(settingsTab);
+  }
+  function selectSettingsTab(selected){
+    settingsTab=selected;
+    $$('.settings-tabs [data-tab]').forEach(tab=>{const active=tab.dataset.tab===selected;tab.classList.toggle('selected',active);tab.setAttribute('aria-selected',String(active));});
+    $$('.settings-panel').forEach(panel=>panel.hidden=panel.dataset.tab!==selected);
+    $('#page-root .sheet-body').scrollTop=0;
   }
   function openFeedback(){
     modal('反馈问题',`${field('问题描述','<textarea id="feedback-text" maxlength="1200" rows="5" placeholder="发生了什么？如何复现？"></textarea>')}
@@ -488,10 +562,12 @@
     input.click();
   }
   function handleAction(action,button){
-    if(action==='close'){close();return;} if(action==='close-overlay'){if(button.classList.contains('overlay'))close();return;}
+    if(action==='keep-editing'){pendingLeave=null;$('#discard-confirm')?.remove();$('#modal-root .sheet')?.style.removeProperty('--dismiss-start');return;}
+    if(action==='discard-changes'){const after=pendingLeave;pendingLeave=null;$('#discard-confirm')?.remove();dirtyTarget=null;if(after)after();return;}
+    if(action==='close'||action==='close-overlay'){requestDismiss();return;}
     if(action==='theme'){const old=state.settings.theme;state.settings.theme=old==='dark'?'light':'dark';applyTheme();applyBackground(table);if(!save(false)){state.settings.theme=old;applyTheme();applyBackground(table);}return;}
     if(action==='prev'||action==='next'){week+=action==='prev'?-1:1;render();return;}
-    if(action==='home'){render();return;}
+    if(action==='home'){navigation('home');return;}
     if(action==='today'){week=currentWeek();render();return;}
     if(action==='week'){openWeek();return;}
     if(action==='set-week'){week=Math.max(1,Math.min(table.totalWeeks,Number($('#week-input').value)||1));close();render();return;}
@@ -521,8 +597,8 @@
     if(action==='detail'){detail(button.dataset.id);return;}
     if(action==='marker'){detailMarker(button.dataset.id);return;}
     if(action==='edit-selected'){const id=selectedEvent?.courseId;openEditor(id);return;}
-    if(action==='add-session'){$('#sessions').insertAdjacentHTML('beforeend',sessionMarkup({},$('#sessions').children.length,$('#sessions .s-room')?.value||''));return;}
-    if(action==='remove-session'){if($('#sessions').children.length>1)button.closest('.session').remove();return;}
+    if(action==='add-session'){$('#sessions').insertAdjacentHTML('beforeend',sessionMarkup({},$('#sessions').children.length,$('#sessions .s-room')?.value||''));renumberSessions();return;}
+    if(action==='remove-session'){if($('#sessions').children.length>1)button.closest('.session').remove();renumberSessions();return;}
     if(action==='color-custom'){openColorPicker();return;}
     if(action==='color-cancel'){closeColorPicker();return;}
     if(action==='color-apply'){
@@ -564,7 +640,7 @@
       table.exceptions=table.exceptions.filter(x=>x.sessionId!==source.sessionId||x.sourceDate!==source.date);
       table.exceptions.push(change);save();close();render();toast(`已调至 ${date} 第 ${start}-${end} 节`);return;
     }
-    if(action==='import'){openImport();return;}
+    if(action==='import'){navigation('import');return;}
     if(action==='other-school'){openOtherSchool();return;}
     if(action==='school'){if(native)native.openPortal('https://jws.syuct.edu.cn/');else toast('请在安卓应用中打开');return;}
     if(action==='custom-portal'){
@@ -587,15 +663,11 @@
       }
       else if(mode==='replace'){table.courses=courses;table.exceptions=[];}
       else table.courses.push(...courses);
-      pendingImport=null;save();close();render();toast('导入完成');return;
+      pendingImport=null;save();close();page='home';render();toast('导入完成');return;
     }
-    if(action==='settings'){openSettings();return;}
-    if(action==='settings-tab'){
-      const selected=button.dataset.tab;
-      $$('.settings-tabs [data-tab]').forEach(tab=>{const active=tab.dataset.tab===selected;tab.classList.toggle('selected',active);tab.setAttribute('aria-selected',String(active));});
-      $$('.settings-panel').forEach(panel=>panel.hidden=panel.dataset.tab!==selected);
-      $('.sheet-body').scrollTop=0;return;
-    }
+    if(action==='settings'){navigation('settings');return;}
+    if(action==='settings-tab'){selectSettingsTab(button.dataset.tab);return;}
+    if(action==='cancel-settings'){leave(()=>{dirtyTarget=null;openSettings();});return;}
     if(action==='save-settings'){
       const name=$('#setting-name').value.trim(),date=$('#setting-date').value,weeks=Number($('#setting-weeks').value),mins=Number($('#reminder-minutes').value);
       if(!name||!/^\d{4}-\d\d-\d\d$/.test(date)||M.monday(date)!==date||weeks<1||weeks>30||mins<0||mins>240){$('#settings-error').textContent='请检查名称、第一周周一、总周数和提醒时间';return;}
@@ -609,7 +681,7 @@
       }
       toast('设置已保存');return;
     }
-    if(action==='periods'){openPeriods();return;}
+    if(action==='periods'){leave(()=>{openSettings();openPeriods();});return;}
     if(action==='add-period'){
       const rows=$('#period-rows');if(rows.children.length>=20)return;
       const last=rows.lastElementChild.querySelector('.period-end').value;
@@ -681,9 +753,11 @@
   const $$=s=>[...document.querySelectorAll(s)];
   document.addEventListener('click',e=>{
     if($('.overlay.closing')){e.preventDefault();return;}
+    if($('#discard-confirm')&&!e.target.closest('#discard-confirm')){e.preventDefault();return;}
     const target=e.target.closest('[data-action]');
     if(target&&!(target.classList.contains('overlay')&&target!==e.target))handleAction(target.dataset.action,target);
   });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&window.onBackRequested())e.preventDefault();});
   document.addEventListener('pointerdown',e=>{
     const field=e.target.closest('#color-field');if(!field||$('#color-picker')?.hidden)return;
     field.setPointerCapture(e.pointerId);pickColorAt(e.clientX,e.clientY);
@@ -729,10 +803,10 @@
         const backup=M.validateState(JSON.parse(data.text));pendingImport={backup};
         modal('恢复备份',`<div class="note">${backup.tables.length} 张课表，共 ${backup.tables.reduce((n,t)=>n+t.courses.length,0)} 门课。恢复将替换当前全部数据。</div>`,
           '<button class="button fill" data-action="close">取消</button><button class="button danger fill" data-action="restore-backup">恢复</button>');
-      }else previewImport(I.parseCsvCourses(data.text,table.totalWeeks),data.name);
+      }else previewImport(I.parseCsvCourses(data.text,30),data.name);
     }catch(e){toast('导入失败：'+e.message);}
   };
-  window.onPortalData=data=>{try{previewImport(I.parsePortal(data,table.totalWeeks),data.source||'教务系统');}catch(e){toast(e.message);}};
+  window.onPortalData=data=>{try{previewImport(I.parsePortal(data,30),data.source||'教务系统');}catch(e){toast(e.message);}};
   window.onBackgroundPicked=data=>{
     if(data.error){toast(data.error);return;}
     const target=state.tables.find(t=>t.id===data.tableId);if(!target)return;

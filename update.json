@@ -1,12 +1,12 @@
 {
-  "tag_name": "v2.1.0",
-  "body": "# ClassGrid v2.1.0\n\n- 修复返回应用时可能漏掉已到点的课程提醒；记录已发送的提醒，避免重复通知。\n- 提醒排程不再等待联网检查更新；关闭界面或划掉最近任务后，由系统继续提醒。\n- “通知权限”可打开系统通知设置；提醒页显示下一门课程及最近发送时间。\n- 修复夜间模式关闭弹层时的浅色闪块，调整弹层开合动效，支持下拉标题栏关闭。\n- 调整导入课表页面，分开教务系统与本地文件入口。\n\n已在 Android 15 模拟器验证课程提醒、清除最近任务后的通知、补发与去重。尚未完成各厂商手机的实机验证。\n\nAPK SHA-256：788e6a5dcff1078cc1b422e5d866175f053573fc25741e3fc5a91c1db30a600c\n",
+  "tag_name": "v2.1.1",
+  "body": "# ClassGrid v2.1.1\n\n- 界面改为蓝色 Material 风格，适配白天和夜间；底部为课表、导入、设置，悬浮按钮添加课程。\n- 修复沈阳化工大学当前教务课表格式的识别；支持合并单元格、单双周与不同教室，导入先核对再保存。\n- 弹层移除关闭叉号，支持下滑、遮罩和系统返回；未保存的更改退出前确认。\n- 重排课程编辑、导入及设置页面，修复色环对齐和悬浮按钮遮挡；周次、星期、日期及时间使用 Material 选择器。\n- 单双周课程详情直接列出实际周次。\n\n用户已实机确认沈化课表提取成功；安卓模拟器已验证选择器、草稿保护、导入和后台提醒。\n\nAPK SHA-256：925163393625605cc35cc1fbad909df20375eeca061b25d2f33b49b3e5166fe3\n",
   "assets": [
     {
-      "name": "ClassGrid-v2.1.0.apk",
-      "size": 1047977,
-      "digest": "sha256:788e6a5dcff1078cc1b422e5d866175f053573fc25741e3fc5a91c1db30a600c",
-      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v2.1.0/ClassGrid-v2.1.0.apk"
+      "name": "ClassGrid-v2.1.1.apk",
+      "size": 1065191,
+      "digest": "sha256:925163393625605cc35cc1fbad909df20375eeca061b25d2f33b49b3e5166fe3",
+      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v2.1.1/ClassGrid-v2.1.1.apk"
     }
   ]
 }

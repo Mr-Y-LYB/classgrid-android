@@ -1,149 +1,924 @@
-/* Local Material 3 theme. No network fonts or runtime component downloads. */
-:root{--md-primary:#006b9a;--md-on-primary:#fff;--md-container:#cee5ff;--md-on-container:#06324b;--md-surface:#f8f9ff;--md-panel:#eef1f9;--md-raised:#e8edf6;--md-input:#f8f9ff;--md-text:#191c20;--md-muted:#56616c;--md-outline:#c4cbd4;--md-line:#e1e6ee;--md-error:#a83539;--md-danger:#ffdadb;--md-shadow:0 3px 9px #12334a17}
-:root[data-theme=dark]{--md-primary:#8fcdff;--md-on-primary:#00344e;--md-container:#164c6e;--md-on-container:#cee5ff;--md-surface:#111318;--md-panel:#1b2028;--md-raised:#252b35;--md-input:#171c23;--md-text:#e3e5ec;--md-muted:#b4beca;--md-outline:#454f5d;--md-line:#2a333e;--md-error:#ffb3b7;--md-danger:#613138;--md-shadow:0 3px 12px #0003}
+/* ==========================================================================
+   ClassGrid · Material Design 3 theme layer
+   --------------------------------------------------------------------------
+   依据：
+   · Android-MD3-Knowledge 知识库（01-Foundations / 02-Components /
+     05-Design-Tokens / 07-Development-Rules），2026-11 版本
+   · 色板由官方 @material/material-color-utilities（CorePalette + 官方
+     tone 映射）从种子色 #006B9A 生成，浅色与深色各一套
+   · 排版用 M3 15 档 Type Scale 中的 9 档；形状用 M3 十档圆角里的
+     {none 0 / xs 4 / s 8 / m 12 / l 16 / xl 28 / full}
+   · 本文件在 style.css 之后加载，负责把全部视觉替换为 M3 语义角色；
+     结构类（布局、动画、交互）仍由 style.css 提供，不改动
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ 1. Tokens */
+:root{
+  --md-sys-color-primary: #006491;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #c9e6ff;
+  --md-sys-color-on-primary-container: #001e2f;
+  --md-sys-color-secondary: #4f606e;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #d3e5f5;
+  --md-sys-color-on-secondary-container: #0c1d29;
+  --md-sys-color-tertiary: #64597c;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #eaddff;
+  --md-sys-color-on-tertiary-container: #201635;
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+  --md-sys-color-surface: #f9f9fc;
+  --md-sys-color-on-surface: #191c1e;
+  --md-sys-color-surface-variant: #dde3ea;
+  --md-sys-color-on-surface-variant: #41474d;
+  --md-sys-color-outline: #71787e;
+  --md-sys-color-outline-variant: #c1c7ce;
+  --md-sys-color-surface-dim: #d9dadd;
+  --md-sys-color-surface-bright: #f9f9fc;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f3f3f6;
+  --md-sys-color-surface-container: #edeef0;
+  --md-sys-color-surface-container-high: #e7e8eb;
+  --md-sys-color-surface-container-highest: #e2e2e5;
+  --md-sys-color-inverse-surface: #2e3133;
+  --md-sys-color-inverse-on-surface: #f0f0f3;
+  --md-sys-color-inverse-primary: #89ceff;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-surface-tint: #006491;
+
+  /* M3 shape scale */
+  --md-shape-none:0px; --md-shape-xs:4px; --md-shape-s:8px; --md-shape-m:12px;
+  --md-shape-l:16px; --md-shape-xl:28px; --md-shape-full:999px;
+
+  /* M3 elevation（官方 level1–3 阴影值） */
+  --md-elev-1:0 1px 2px 0 rgba(0,0,0,.30),0 1px 3px 1px rgba(0,0,0,.15);
+  --md-elev-2:0 1px 2px 0 rgba(0,0,0,.30),0 2px 6px 2px rgba(0,0,0,.15);
+  --md-elev-3:0 4px 8px 3px rgba(0,0,0,.15),0 1px 3px 0 rgba(0,0,0,.30);
+
+  /* M3 motion */
+  --md-ease-standard:cubic-bezier(.2,0,0,1);
+  --md-ease-emphasized:cubic-bezier(.05,.7,.1,1);
+  --md-dur-short:150ms; --md-dur-medium:300ms;
+
+  --md-scrim:rgba(0,0,0,.32);
+}
+:root[data-theme=dark]{
+  --md-sys-color-primary: #89ceff;
+  --md-sys-color-on-primary: #00344d;
+  --md-sys-color-primary-container: #004c6e;
+  --md-sys-color-on-primary-container: #c9e6ff;
+  --md-sys-color-secondary: #b7c9d9;
+  --md-sys-color-on-secondary: #21323f;
+  --md-sys-color-secondary-container: #384956;
+  --md-sys-color-on-secondary-container: #d3e5f5;
+  --md-sys-color-tertiary: #cec0e8;
+  --md-sys-color-on-tertiary: #352b4a;
+  --md-sys-color-tertiary-container: #4c4263;
+  --md-sys-color-on-tertiary-container: #eaddff;
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+  --md-sys-color-surface: #111416;
+  --md-sys-color-on-surface: #e2e2e5;
+  --md-sys-color-surface-variant: #41474d;
+  --md-sys-color-on-surface-variant: #c1c7ce;
+  --md-sys-color-outline: #8b9197;
+  --md-sys-color-outline-variant: #41474d;
+  --md-sys-color-surface-dim: #111416;
+  --md-sys-color-surface-bright: #37393c;
+  --md-sys-color-surface-container-lowest: #0c0e11;
+  --md-sys-color-surface-container-low: #191c1e;
+  --md-sys-color-surface-container: #1d2022;
+  --md-sys-color-surface-container-high: #282a2d;
+  --md-sys-color-surface-container-highest: #333537;
+  --md-sys-color-inverse-surface: #e2e2e5;
+  --md-sys-color-inverse-on-surface: #2e3133;
+  --md-sys-color-inverse-primary: #006491;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-surface-tint: #89ceff;
+  --md-elev-1:0 1px 2px 0 rgba(0,0,0,.45),0 1px 3px 1px rgba(0,0,0,.25);
+  --md-elev-2:0 1px 2px 0 rgba(0,0,0,.45),0 2px 6px 2px rgba(0,0,0,.25);
+  --md-elev-3:0 4px 8px 3px rgba(0,0,0,.25),0 1px 3px 0 rgba(0,0,0,.45);
+  --md-scrim:rgba(0,0,0,.55);
+}
+
+/* 旧变量名一律指向新角色，保证 style.css 里残留的 var() 不失效 */
+:root{
+  --md-primary:var(--md-sys-color-primary);
+  --md-on-primary:var(--md-sys-color-on-primary);
+  --md-container:var(--md-sys-color-primary-container);
+  --md-on-container:var(--md-sys-color-on-primary-container);
+  --md-surface:var(--md-sys-color-surface);
+  --md-panel:var(--md-sys-color-surface-container-low);
+  --md-raised:var(--md-sys-color-surface-container-high);
+  --md-input:var(--md-sys-color-surface-container-high);
+  --md-text:var(--md-sys-color-on-surface);
+  --md-muted:var(--md-sys-color-on-surface-variant);
+  --md-outline:var(--md-sys-color-outline);
+  --md-line:var(--md-sys-color-outline-variant);
+  --md-error:var(--md-sys-color-error);
+  --md-danger:var(--md-sys-color-error-container);
+  --md-shadow:var(--md-elev-1);
+}
+
+/* ------------------------------------------------------- 2. Base / typography */
 [hidden]{display:none!important}
-:root[data-theme]{background:var(--md-surface);color:var(--md-text);font-family:system-ui,-apple-system,"Noto Sans CJK SC","Microsoft YaHei",sans-serif}
-button,input,select,textarea{font:inherit}button{cursor:pointer;touch-action:manipulation}
-:root[data-theme] .shell,:root[data-theme] .top{background:var(--md-surface);color:var(--md-text)}
-.home-content{flex:1;min-height:0;display:flex;flex-direction:column}.top{padding:18px 18px 12px}.brandtitle{font-size:20px;font-weight:650;letter-spacing:0}.brandmark{width:32px;height:32px;padding:0;border-radius:10px}
-:root[data-theme] .brandtitle,:root[data-theme] .table-name,:root[data-theme] .iconbtn{color:var(--md-text)}
-:root[data-theme] .manage-btn,:root[data-theme] .weekpill{border:0;background:var(--md-panel);color:var(--md-on-container);border-radius:24px;min-height:44px;padding:9px 14px;box-shadow:none}
-.toolbar{padding:0 14px 14px;gap:4px}.table-name{font-size:14px}.weeknav{gap:0}.weeknav .iconbtn{min-width:32px}.weekpill{font-size:13px}
-:root[data-theme] .todaybtn{min-height:40px;border-radius:22px;background:var(--md-container);color:var(--md-on-container)}
-:root[data-theme] .weekday-row{background:var(--md-surface);border-color:var(--md-line)}
-:root[data-theme] .weekday-row .day,:root[data-theme] .weekday-row .day b{color:var(--md-muted)}
-:root[data-theme] .weekday-row .today b,:root[data-theme] .weekday-row .today span{color:var(--md-primary)}
-:root[data-theme] .theme-switch{color:var(--md-primary);border-color:var(--md-line)}
-:root[data-theme] .grid-scroll{background:var(--md-surface)}
-:root[data-theme] .period-label{color:var(--md-muted);border-color:var(--md-line)}
-:root[data-theme] .slot{border-color:var(--md-line)}
-:root[data-theme] .slot.todaycol{background:color-mix(in srgb,var(--md-container) 23%,transparent)}
-:root[data-theme] .empty-tip{color:var(--md-muted)}
-.grid-scroll{padding-bottom:0}.timetable{padding-bottom:100px}.course-card{border-radius:10px;box-shadow:none}
-.course-card:not(.change-marker) strong,.course-card:not(.change-marker) .course-room,.color-sample{ text-shadow:none }
-:root[data-theme] .bottom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:auto;min-height:80px;padding:8px 16px calc(8px + env(safe-area-inset-bottom));background:var(--md-panel);border:0;gap:0;align-items:center}
-:root[data-theme] .navbtn{flex:1;min-width:0;min-height:60px;gap:3px;color:var(--md-muted);font-size:12px;font-weight:550;border-radius:0;background:transparent}
-:root[data-theme] .navbtn svg{width:64px;height:32px;padding:5px 20px;background:transparent;border:0;border-radius:24px;color:inherit;box-shadow:none}
-:root[data-theme] .navbtn.selected{color:var(--md-text);background:transparent}
-:root[data-theme] .navbtn.selected svg{background:var(--md-container);color:var(--md-on-container)}
-:root[data-theme] .navbtn.action-import:not(.selected) svg{background:transparent;border:0;color:inherit}
-.fab{position:absolute;right:20px;bottom:calc(96px + env(safe-area-inset-bottom));width:56px;height:56px;border:0;border-radius:18px;background:var(--md-container);color:var(--md-on-container);box-shadow:var(--md-shadow);display:grid;place-items:center;z-index:2}
-.fab svg{width:26px;height:26px}.fab:active{background:color-mix(in srgb,var(--md-container) 85%,var(--md-primary))}.shell{position:relative}
-.main-page{flex:1;min-height:0;display:flex;flex-direction:column}.shell:has(.main-page:not([hidden]))>.top{display:none}
-.page-heading{padding:24px 24px 18px;flex:none}.page-heading>span{display:block;color:var(--md-muted);font-size:13px;font-weight:600;margin-bottom:6px}.page-heading h1{font-size:30px;line-height:1.2;letter-spacing:0;margin:0;font-weight:650}
-.page-body{flex:1;min-height:0;padding:8px 20px 20px}.page-actions{display:flex;gap:12px;padding:12px 20px;background:var(--md-surface);border-top:1px solid var(--md-line);flex:none}
-:root[data-theme] .sheet{background:var(--md-panel);color:var(--md-text);border-radius:28px 28px 0 0;box-shadow:var(--md-shadow);max-height:min(92dvh,900px)}
-.sheet-head{padding:26px 24px 18px;min-height:72px;gap:12px}.sheet-head h2{font-size:21px;font-weight:600}.sheet-body{padding:18px 20px;min-height:0}.sheet-actions{padding:14px 20px calc(14px + env(safe-area-inset-bottom));gap:10px}
-.sheet-handle{background:var(--md-outline)!important;width:32px;left:calc(50% - 16px);height:4px}.sheet-back{order:-1}
-:root[data-theme] .sheet-head,:root[data-theme] .sheet-actions,:root[data-theme] .listrow{border-color:var(--md-line)}
-:root[data-theme] .sheet-head h2,:root[data-theme] .section-title,:root[data-theme] .panel-heading,:root[data-theme] .listrow strong{color:var(--md-text)}
-:root[data-theme] .button{background:var(--md-raised);color:var(--md-on-container);border-radius:24px;min-height:48px;padding:12px 18px;font-size:14px;font-weight:600;box-shadow:none}
-:root[data-theme] .button.primary{background:var(--md-primary);color:var(--md-on-primary)}
-:root[data-theme] .button.danger{background:var(--md-danger);color:var(--md-error)}
-:root[data-theme] .button.small{min-height:40px;font-size:12px;padding:9px 13px}
-:root[data-theme] .field label,:root[data-theme] .label,:root[data-theme] .muted,:root[data-theme] .listrow small,:root[data-theme] .subtle{color:var(--md-muted)}
-.field{gap:7px;margin-bottom:16px}.field label{font-size:12px;font-weight:550}
-:root[data-theme] .field input,:root[data-theme] .field select,:root[data-theme] .field textarea,:root[data-theme] .input,:root[data-theme] .period-row input,:root[data-theme] .panel-card .field input{background:var(--md-input);color:var(--md-text);border:1px solid var(--md-outline);border-radius:12px;min-height:48px;padding:12px;font-size:14px}
-:root[data-theme] .field input:focus,:root[data-theme] .field select:focus,:root[data-theme] .field textarea:focus{border-color:var(--md-primary);box-shadow:0 0 0 1px var(--md-primary)}
-:root[data-theme] .panel-card,:root[data-theme] .session,:root[data-theme] .settings-list,:root[data-theme] .preview-item{background:var(--md-panel);color:var(--md-text);border:0;border-radius:20px}
-.panel-card{padding:18px 16px 5px}.session{padding:16px;margin-bottom:14px}.session-head{margin-bottom:16px}.panel-heading{margin:18px 3px 12px;font-size:14px}
-:root[data-theme] .panel-card .field label,:root[data-theme] .session-head,:root[data-theme] .preview-item span{color:var(--md-muted)}
-:root[data-theme] .settings-link,:root[data-theme] .settings-list button,:root[data-theme] .reminder-switch{color:var(--md-text);border-color:var(--md-line)}
-.settings-list button{min-height:60px!important;padding:0 18px!important;font-size:14px!important}.settings-link{min-height:56px}.settings-panel .version{margin:18px 3px 0}
-:root[data-theme] .settings-tabs,:root[data-theme] .segmented{border:1px solid var(--md-outline);border-radius:28px;padding:3px;background:transparent;gap:0}
-:root[data-theme] .settings-tabs button,:root[data-theme] .segmented label{color:var(--md-muted);min-height:40px;border-radius:24px;font-size:12px}
-:root[data-theme] .settings-tabs button.selected,:root[data-theme] .segmented label:has(input:checked){color:var(--md-on-container);background:var(--md-container);box-shadow:none}
-:root[data-theme] .permission-status,:root[data-theme] .note{background:var(--md-raised);color:var(--md-muted);border-radius:14px;padding:12px;line-height:1.7}
-:root[data-theme] .note.warn{background:var(--md-danger);color:var(--md-error)}
-.reminder-switch{font-size:14px}.reminder-switch input{appearance:none;width:44px;height:26px;border-radius:18px;border:2px solid var(--md-outline);position:relative;background:var(--md-raised)}
-.reminder-switch input:after{content:'';width:16px;height:16px;position:absolute;left:3px;top:3px;border-radius:50%;background:var(--md-muted);transition:transform .2s}.reminder-switch input:checked{background:var(--md-primary);border-color:var(--md-primary)}.reminder-switch input:checked:after{background:var(--md-on-primary);transform:translateX(17px)}
-.permission-actions{margin-top:14px}.reminder-test{margin:0 0 8px}.reminder-test-status:empty{display:none}
-:root[data-theme] .panel-heading svg,:root[data-theme] .settings-link svg,:root[data-theme] .settings-list svg{color:var(--md-primary);width:21px;height:21px}
-:root[data-theme] .import-sources,:root[data-theme] .import-files{background:var(--md-panel);border:0;border-radius:24px}
-:root[data-theme] .import-page .import-source{min-height:88px;background:transparent;color:var(--md-text);padding:16px;border:0}
-:root[data-theme] .import-page .import-source+.import-source,:root[data-theme] .import-page .import-template{border-top:1px solid var(--md-line)}
-:root[data-theme] .import-page .source-icon,:root[data-theme] .source-icon.file,:root[data-theme] .source-icon.globe{width:44px;height:44px;border-radius:16px;background:var(--md-container);color:var(--md-on-container)}
-:root[data-theme] .source-copy small,:root[data-theme] .import-section-label,:root[data-theme] .import-help,:root[data-theme] .version{color:var(--md-muted)}
-.import-page .source-copy strong{font-size:15px}.import-section-label{font-size:13px;font-weight:550;margin:6px 12px 12px}.import-section-label:not(:first-child){margin-top:28px}
-:root[data-theme] .import-page .import-template{background:transparent;color:var(--md-primary);min-height:52px;padding:0 18px;font-size:12px}.import-page .import-help{margin:18px 8px;text-align:left;font-size:12px}
-:root[data-theme] .import-page .import-template{min-height:88px;gap:12px;padding:16px;text-align:left;font-weight:400}
-.import-template .template-copy{display:flex;flex:1;flex-direction:column;gap:5px;min-width:0}
-.import-template .template-copy strong{font-size:14px;font-weight:600;color:var(--md-text)}
-.import-template .template-copy small{font-size:11px;font-weight:400;color:var(--md-muted)}
-.import-template .template-download{display:flex;align-items:center;justify-content:center;gap:7px;flex:none;min-height:44px;border-radius:24px;padding:10px 14px;background:var(--md-container);color:var(--md-on-container);font-size:13px;font-weight:600}
-.import-template .template-download svg{width:18px;height:18px}.import-template .template-download span{font-size:13px!important;font-weight:600!important}
-:root[data-theme] .import-template .template-download{flex:0 0 auto}
-:root[data-theme] .import-template .template-download svg{color:currentColor}
-:root[data-theme] .import-page .import-template:active{background:var(--md-raised);filter:none}
-:root[data-theme] .color-picker{background:transparent}.color-picker-value{align-items:flex-end}.color-sample{height:48px;width:56px}.color-ring{width:48px;height:48px;border:0}.color-ring:before{width:20px;height:20px}
-:root[data-theme] .color-picker-title,:root[data-theme] .color-ring{color:var(--md-text)}
-:root[data-theme] .period-row{border-color:var(--md-line);background:transparent}
-:root[data-theme] .period-row:nth-child(odd){background:var(--md-raised)}
-:root[data-theme] .period-number,:root[data-theme] .period-column-head{color:var(--md-muted)}
-.period-row{gap:6px}.period-row input{padding:9px!important;min-width:0}
-:root[data-theme] .error{color:var(--md-error)}
-:root[data-theme] .update-badge{background:var(--md-container);color:var(--md-on-container)}
-:root[data-theme] .update-browser{color:var(--md-primary)}
-:root[data-theme] .update-head{border-color:var(--md-line)}
-:root[data-theme] .update-list{color:var(--md-text);line-height:1.65;font-size:14px}
-:root[data-theme] #toast{background:var(--md-text);color:var(--md-surface);border-radius:14px}
-.confirm-overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:#10182066;padding:24px}
-.discard-dialog{width:min(100%,340px);padding:24px;background:var(--md-panel);color:var(--md-text);border-radius:28px;box-shadow:var(--md-shadow)}.discard-dialog h2{font-size:21px;margin:0 0 16px}.discard-dialog p{font-size:14px;color:var(--md-muted);margin-bottom:24px}.discard-dialog .button{padding:12px 10px;font-size:13px}
-:root[data-theme] .iconbtn:active,:root[data-theme] .settings-list button:active,:root[data-theme] .import-source:active{background:var(--md-raised);filter:none}
-button:focus-visible{outline:2px solid var(--md-primary);outline-offset:2px}.sheet-body{scrollbar-width:thin}
-@media(max-width:350px){.top{padding-inline:12px}.brandtitle{font-size:18px}.toolbar{padding-inline:10px}.table-name{max-width:29%}.manage-btn{font-size:11px}.page-heading{padding:20px 18px 16px}.page-body,.sheet-body{padding-inline:14px}.sheet-actions,.page-actions{padding-inline:14px}.settings-tabs button{font-size:11px!important}.fab{right:14px}.source-copy small{font-size:10px}.row{gap:7px}.button{padding-inline:12px!important}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+:root{font-size:14px}
+:root[data-theme]{
+  background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);
+  font-family:system-ui,-apple-system,"Noto Sans CJK SC","Source Han Sans SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+:root[data-theme] .shell,:root[data-theme] .top{background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface)}
+::selection{background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container)}
 
-/* Form sheets have their own stacking and filled Material fields. */
-#modal-root{z-index:20}.confirm-overlay{z-index:30}#toast{z-index:40}
-body.dialog-open .fab{visibility:hidden;pointer-events:none}
-:root[data-theme] .course-editor-sheet{background:var(--md-panel)}
-.course-editor-sheet .sheet-head{padding:26px 20px 16px;min-height:70px;border-bottom:0}
-.course-editor-sheet .sheet-head h2{font-size:21px;line-height:1.3;font-weight:600}
-.course-editor-sheet .sheet-body{padding-top:6px;padding-bottom:20px}
-.course-basics{display:flex;flex-direction:column;gap:14px;margin:0 0 24px}
-.course-name-row{display:grid;grid-template-columns:minmax(0,1fr) 48px;align-items:center;gap:12px}
-.course-editor-sheet #course-form .field{position:relative;gap:0;margin:0 0 14px;min-width:0}
-.course-editor-sheet #course-form .course-basics>.field,.course-editor-sheet #course-form .course-name-row>.field{margin:0}
-.course-editor-sheet #course-form .field>label{position:absolute;top:8px;left:13px;right:8px;font-size:11px;line-height:15px;font-weight:500;color:var(--md-muted);pointer-events:none;z-index:1;overflow:hidden;white-space:nowrap}
-:root[data-theme] .course-editor-sheet #course-form .field>input,:root[data-theme] .course-editor-sheet #course-form .field>select{height:60px;min-height:60px;padding:25px 12px 8px;border:0;border-bottom:1px solid var(--md-outline);border-radius:12px 12px 3px 3px;background:var(--md-input);font-size:15px;line-height:22px;color:var(--md-text)}
-:root[data-theme] .course-editor-sheet #course-form .field>input:focus,:root[data-theme] .course-editor-sheet #course-form .field>select:focus{box-shadow:0 1px 0 var(--md-primary);border-color:var(--md-primary)}
-.course-editor-sheet .course-name-row .color-ring{width:48px;height:48px;min-height:48px;margin:0;padding:4px;align-self:center;box-shadow:none;border:0}
-.course-editor-sheet .course-name-row .color-ring span{border:3px solid var(--md-panel);box-shadow:none}
-.course-time-heading{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:14px;font-weight:600;line-height:22px}
-.course-time-heading svg{width:20px;height:20px;color:var(--md-primary)}
-:root[data-theme] .course-editor-sheet .session{padding:16px 14px 2px;border:1px solid var(--md-line);border-radius:20px;background:var(--md-raised);margin:0 0 12px}
-.course-editor-sheet .session-head{min-height:24px;margin-bottom:14px;font-size:13px;line-height:20px}
-:root[data-theme] .course-editor-sheet .session-head .button{background:transparent;color:var(--md-error);min-height:32px;padding:5px 10px;font-size:12px}
-.course-editor-sheet .session .row{gap:10px}
-:root[data-theme] .course-editor-sheet .add-session-button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--md-outline);background:transparent;color:var(--md-primary);min-height:44px;font-size:13px}
+/* --------------------------------------------------------- 3. Top app bar 区 */
+/* 两行式 app bar：第一行品牌 + 操作，第二行标题（课表名）+ 周切换 */
+.top{padding:12px 12px 0;min-height:0;align-items:center;flex:none}
+.brand{gap:10px;align-items:center}
+.brandmark{width:28px;height:28px;border-radius:var(--md-shape-s);object-fit:contain}
+.brandtitle{font-size:13px;line-height:18px;font-weight:500;letter-spacing:.1px;color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme] .brandtitle,:root[data-theme] .table-name,:root[data-theme] .iconbtn{color:var(--md-sys-color-on-surface)}
+
+/* 「切换／新建」= M3 顶栏图标按钮（40dp 触控区，无底色） */
+:root[data-theme] .manage-btn{
+  display:grid;place-items:center;flex:none;width:40px;height:40px;min-height:40px;padding:0;
+  border:0;border-radius:var(--md-shape-full);background:transparent;
+  color:var(--md-sys-color-on-surface-variant);box-shadow:none;
+}
+:root[data-theme] .manage-btn svg{width:22px;height:22px;color:inherit}
+:root[data-theme] .manage-btn:active{background:var(--md-sys-color-surface-container-high)}
+:root[data-theme] .manage-btn:active{background:color-mix(in srgb,var(--md-sys-color-secondary-container) 80%,var(--md-sys-color-on-secondary-container))}
+
+/* 第二行：课表名（titleLarge）+ 周切换 */
+.toolbar{padding:6px 12px 8px;gap:8px;align-items:center;flex:none}
+:root[data-theme] .table-name{
+  flex:1;min-width:0;max-width:none;font-size:22px;line-height:28px;font-weight:500;letter-spacing:0;
+  color:var(--md-sys-color-on-surface);padding-left:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.weeknav{gap:2px;align-items:center}
+.weeknav .iconbtn{min-width:40px;width:40px;height:40px;border-radius:var(--md-shape-full);color:var(--md-sys-color-on-surface-variant);font-size:20px}
+.weeknav .iconbtn:active{background:var(--md-sys-color-surface-container-high)}
+:root[data-theme] .weekpill{
+  border:0;background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface);
+  border-radius:var(--md-shape-full);min-height:32px;height:32px;padding:0 14px;
+  font-size:13px;line-height:18px;font-weight:500;letter-spacing:.1px;white-space:nowrap;box-shadow:none;
+}
+/* 「本周」= M3 text button */
+:root[data-theme] .todaybtn{
+  border:0;background:transparent;color:var(--md-sys-color-primary);
+  border-radius:var(--md-shape-full);min-height:32px;height:32px;padding:0 12px;
+  font-size:13px;line-height:18px;font-weight:500;letter-spacing:.1px;
+}
+:root[data-theme] .todaybtn:active{background:var(--md-sys-color-primary-container)}
+:root[data-theme] .todaybtn:disabled{color:var(--md-sys-color-on-surface-variant);opacity:.38}
+
+/* ------------------------------------------------------- 4. Weekday header 行 */
+:root[data-theme] .weekday-row{
+  background:var(--md-sys-color-surface);border-top:0;flex:none;
+  border-bottom:1px solid var(--md-sys-color-outline-variant);height:56px;
+}
+:root[data-theme] .weekday-row .day{
+  border-radius:var(--md-shape-m);margin:4px 1px;gap:2px;
+  color:var(--md-sys-color-on-surface-variant);
+}
+:root[data-theme] .weekday-row .day b{
+  font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;color:var(--md-sys-color-on-surface-variant);
+}
+:root[data-theme] .weekday-row .day span{
+  font-size:11px;line-height:16px;font-weight:500;letter-spacing:.5px;color:var(--md-sys-color-on-surface-variant);opacity:.85;
+}
+:root[data-theme] .weekday-row .today{background:var(--md-sys-color-primary-container)}
+:root[data-theme] .weekday-row .today b,
+:root[data-theme] .weekday-row .today span{color:var(--md-sys-color-on-primary-container);opacity:1;font-weight:500}
+:root[data-theme] .theme-switch{
+  border:0;border-right:0;color:var(--md-sys-color-on-surface-variant);width:34px;height:48px;
+}
+:root[data-theme] .theme-switch svg{width:20px;height:20px}
+
+/* ------------------------------------------------------------- 5. Timetable */
+:root[data-theme] .grid-scroll{background:var(--md-sys-color-surface)}
+:root[data-theme] .timetable{background:var(--md-sys-color-surface)}
+:root[data-theme] .period-label{
+  color:var(--md-sys-color-on-surface-variant);border-right:0;
+  border-bottom:1px solid var(--md-sys-color-outline-variant);opacity:.9;
+}
+:root[data-theme] .period-label b{font-size:11px;line-height:16px;font-weight:500;letter-spacing:.5px}
+:root[data-theme] .period-label small{font-size:9px;line-height:12px;letter-spacing:0;opacity:.9}
+:root[data-theme] .period-label .period-end{display:none}
+:root[data-theme] .slot{border-color:var(--md-sys-color-outline-variant);border-right:0;opacity:.75}
+:root[data-theme] .slot.todaycol{background:var(--md-sys-color-surface-container-low);opacity:1}
+:root[data-theme] .empty-tip{
+  color:var(--md-sys-color-on-surface-variant);display:flex;flex-direction:column;align-items:center;
+  gap:6px;top:88px;left:42px;right:10px;padding:0 20px;text-align:center;pointer-events:none;
+}
+:root[data-theme] .empty-tip .empty-title{
+  font-size:16px;line-height:24px;font-weight:500;letter-spacing:.15px;color:var(--md-sys-color-on-surface);
+}
+:root[data-theme] .empty-tip .empty-sub{
+  font-size:12px;line-height:16px;font-weight:400;letter-spacing:.4px;color:var(--md-sys-color-on-surface-variant);max-width:260px;
+}
+:root[data-theme] .empty-tip::before{
+  content:"";width:56px;height:56px;border-radius:var(--md-shape-l);margin-bottom:6px;
+  background:var(--md-sys-color-surface-container-high)
+    center/24px 24px no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b9197' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M7 3v4m10-4v4M3 10h18'/%3E%3C/svg%3E");
+}
+:root[data-theme=dark] .empty-tip::before{
+  background-color:var(--md-sys-color-surface-container-high);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c1c7ce' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M7 3v4m10-4v4M3 10h18'/%3E%3C/svg%3E");
+}
+
+/* --------------------------------------------------------- 6. Course cards */
+/* 底色与文字由 app.js 按课程色算出「容器色 / 容器上文字」，这里只管几何 */
+.course-card{
+  border-radius:var(--md-shape-s);padding:7px 6px 5px;gap:2px;
+  box-shadow:none;border:0;font-weight:400;
+  transition:transform var(--md-dur-short) var(--md-ease-standard);
+}
+.course-card:active{transform:scale(.985)}
+.course-card strong{
+  font-size:13px;line-height:1.22;font-weight:500;letter-spacing:.1px;
+  text-shadow:none!important;
+}
+.course-card .course-room,
+.course-card>span{
+  font-size:11px;line-height:1.28;letter-spacing:.2px;opacity:.92;text-shadow:none!important;
+}
+.course-card .week-badge{
+  left:6px;right:6px;bottom:5px;padding:1px 0;border-radius:var(--md-shape-xs);
+  border:1px solid currentColor;background:transparent;color:inherit;
+  font-size:9px;line-height:12px;font-weight:500;letter-spacing:.2px;opacity:.75;text-shadow:none;
+}
+.course-card.conflict{outline:2px solid var(--md-sys-color-error);outline-offset:-2px}
+.course-card.change-marker{
+  background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface-variant);
+  border:1px dashed var(--md-sys-color-outline);box-shadow:none;
+}
+.course-card.change-marker strong{color:var(--md-sys-color-on-surface);font-weight:500}
+.course-card.change-marker span{color:var(--md-sys-color-on-surface-variant);opacity:1;font-weight:400}
+
+/* --------------------------------------------------- 7. Navigation bar + FAB */
+/* M3 navigation bar：80dp 高、指示器 64×32、图标 24dp、标签 labelMedium */
+:root[data-theme] .bottom{
+  position:relative;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  height:auto;min-height:80px;padding:12px 8px calc(12px + env(safe-area-inset-bottom));
+  background:var(--md-sys-color-surface-container);border:0;gap:0;align-items:start;
+}
+:root[data-theme] .navbtn{
+  flex:1;min-width:0;min-height:56px;gap:4px;border-radius:var(--md-shape-l);padding:0;
+  background:transparent;color:var(--md-sys-color-on-surface-variant);
+  font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;
+}
+/* 选中指示器：独立滑块，切换目的地时在三个图标间平移（M3 emphasized 缓动） */
+:root[data-theme] .nav-indicator{
+  position:absolute;left:0;top:0;width:64px;height:32px;border-radius:var(--md-shape-full);
+  background:var(--md-sys-color-secondary-container);pointer-events:none;z-index:0;
+  transform:translate(0,0);will-change:transform;
+  transition:transform 320ms var(--md-ease-emphasized),width 200ms var(--md-ease-standard),height 200ms var(--md-ease-standard);
+}
+:root[data-theme] .navbtn{position:relative;z-index:1}
+/* 图标 24dp，选中时实心图标交叉淡入并轻微放大 */
+:root[data-theme] .nav-icon-wrap{
+  display:grid;place-items:center;width:64px;height:32px;flex:none;
+  border-radius:var(--md-shape-full);background:transparent;color:inherit;
+  transition:background-color var(--md-dur-short) var(--md-ease-standard);
+}
+:root[data-theme] .nav-icon-wrap svg{
+  grid-area:1/1;width:24px;height:24px;display:block;
+  transition:opacity 150ms var(--md-ease-standard),transform 220ms var(--md-ease-emphasized);
+}
+:root[data-theme] .navbtn .nav-icon-on{opacity:0;transform:scale(.6)}
+:root[data-theme] .navbtn .nav-icon-off{opacity:1;transform:scale(1)}
+:root[data-theme] .navbtn.selected{color:var(--md-sys-color-on-surface);font-weight:500}
+:root[data-theme] .navbtn.selected .nav-icon-wrap{background:transparent;color:var(--md-sys-color-on-secondary-container)}
+:root[data-theme] .navbtn.selected .nav-icon-on{opacity:1;transform:scale(1)}
+:root[data-theme] .navbtn.selected .nav-icon-off{opacity:0;transform:scale(.86)}
+:root[data-theme] .navbtn.action-import:not(.selected) .nav-icon-wrap{background:transparent;border:0;color:inherit}
+:root[data-theme] .navbtn:active .nav-icon-wrap{background:var(--md-sys-color-surface-container-highest)}
+:root[data-theme] .navbtn span{font-size:12px;line-height:16px;letter-spacing:.5px;font-weight:500}
+
+/* M3 FAB：56dp、圆角 16、primaryContainer、elevation-3 */
+.fab{
+  position:absolute;right:16px;bottom:calc(96px + env(safe-area-inset-bottom));
+  width:56px;height:56px;border:0;border-radius:var(--md-shape-l);
+  background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);
+  box-shadow:var(--md-elev-3);display:grid;place-items:center;z-index:2;
+  transition:box-shadow var(--md-dur-short) var(--md-ease-standard),transform var(--md-dur-short) var(--md-ease-standard);
+}
+.fab svg{width:24px;height:24px}
+.fab:active{background:var(--md-sys-color-primary-container);box-shadow:var(--md-elev-1);transform:scale(.96)}
+.shell{position:relative}
+
+/* ------------------------------------------------- 8. Pages（导入 / 设置） */
+.main-page{flex:1;min-height:0;display:flex;flex-direction:column}
+.shell:has(.main-page:not([hidden]))>.top{display:none}
+.page-heading{padding:20px 16px 12px;flex:none}
+.page-heading>span{
+  display:block;color:var(--md-sys-color-on-surface-variant);font-size:12px;line-height:16px;
+  font-weight:500;letter-spacing:.5px;margin-bottom:2px;
+}
+.page-heading h1{font-size:28px;line-height:36px;letter-spacing:0;margin:0;font-weight:400;color:var(--md-sys-color-on-surface)}
+.page-body{flex:1;min-height:0;padding:8px 16px 24px}
+.page-actions{
+  display:flex;gap:12px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  background:var(--md-sys-color-surface);border-top:1px solid var(--md-sys-color-outline-variant);flex:none;
+}
+
+/* ------------------------------------------------------------- 9. Sheets */
+:root[data-theme] .overlay{background:var(--md-scrim)}
+:root[data-theme] .sheet{
+  background:var(--md-sys-color-surface-container-low);color:var(--md-sys-color-on-surface);
+  border-radius:var(--md-shape-xl) var(--md-shape-xl) 0 0;box-shadow:var(--md-elev-2);
+  max-height:min(92dvh,900px);
+}
+.sheet-head{padding:24px 24px 10px;min-height:0;gap:8px;align-items:center;justify-content:flex-start}
+.sheet-head h2{font-size:22px;line-height:28px;font-weight:500;letter-spacing:0;color:var(--md-sys-color-on-surface);flex:1;min-width:0;text-align:left}
+.sheet-body{padding:8px 24px 20px;min-height:0}
+.sheet-actions{
+  padding:12px 24px calc(16px + env(safe-area-inset-bottom));gap:8px;
+  border-top:1px solid var(--md-sys-color-outline-variant);
+}
+.sheet-handle{background:var(--md-sys-color-on-surface-variant)!important;opacity:.4;width:32px;left:calc(50% - 16px);height:4px;border-radius:var(--md-shape-full)}
+.sheet-back{order:-1;margin-left:-8px}
+.sheet-head .sheet-back+h2{margin-left:0}
+:root[data-theme] .sheet-head,:root[data-theme] .sheet-actions,:root[data-theme] .listrow{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme] .sheet-head h2,:root[data-theme] .section-title,
+:root[data-theme] .panel-heading,:root[data-theme] .listrow strong{color:var(--md-sys-color-on-surface)}
+
+/* ---------------------------------------------------------- 10. Buttons */
+:root[data-theme] .button{
+  background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);
+  border-radius:var(--md-shape-full);min-height:40px;height:auto;padding:10px 24px;
+  font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;box-shadow:none;
+}
+:root[data-theme] .button.primary{background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)}
+:root[data-theme] .button.danger{background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)}
+:root[data-theme] .button.small{
+  min-height:32px;padding:6px 14px;font-size:12px;line-height:16px;font-weight:500;
+  background:transparent;color:var(--md-sys-color-primary);border:1px solid var(--md-sys-color-outline);
+}
+:root[data-theme] .button.small:active{background:var(--md-sys-color-primary-container)}
+:root[data-theme] .iconbtn{
+  min-width:40px;min-height:40px;width:40px;height:40px;border-radius:var(--md-shape-full);
+  color:var(--md-sys-color-on-surface-variant);
+}
+:root[data-theme] .iconbtn:active{background:var(--md-sys-color-surface-container-high)}
+
+/* --------------------------------------------------- 11. Texts & labels */
+:root[data-theme] .field label,
+:root[data-theme] .label,
+:root[data-theme] .muted,
+:root[data-theme] .listrow small,
+:root[data-theme] .subtle{color:var(--md-sys-color-on-surface-variant)}
+.section-title{
+  font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;
+  color:var(--md-sys-color-on-surface-variant);margin:20px 0 8px;
+}
+.muted{font-size:12px;line-height:16px;letter-spacing:.4px}
+
+/* -------------------------------------------- 12. Filled / outlined fields */
+.field{gap:6px;margin-bottom:16px}
+.field label{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px}
+:root[data-theme] .field input,
+:root[data-theme] .field select,
+:root[data-theme] .field textarea,
+:root[data-theme] .input,
+:root[data-theme] .period-row input,
+:root[data-theme] .panel-card .field input{
+  background:var(--md-sys-color-surface-container-lowest);color:var(--md-sys-color-on-surface);
+  border:1px solid var(--md-sys-color-outline);border-radius:var(--md-shape-xs);
+  min-height:52px;padding:14px 16px;font-size:16px;line-height:24px;letter-spacing:.5px;
+}
+:root[data-theme] .field input::placeholder,
+:root[data-theme] .field textarea::placeholder{color:var(--md-sys-color-on-surface-variant);opacity:.7}
+:root[data-theme] .field input:focus,
+:root[data-theme] .field select:focus,
+:root[data-theme] .field textarea:focus{
+  border-color:var(--md-sys-color-primary);box-shadow:inset 0 0 0 1px var(--md-sys-color-primary);outline:none;
+}
+:root[data-theme] .field select{appearance:none;background-image:none}
+
+/* -------------------------------------------------- 13. Panels / lists */
+:root[data-theme] .panel-card,
+:root[data-theme] .session,
+:root[data-theme] .settings-list,
+:root[data-theme] .preview-item{
+  background:var(--md-sys-color-surface-container-low);color:var(--md-sys-color-on-surface);
+  border:1px solid var(--md-sys-color-outline-variant);border-radius:var(--md-shape-l);
+}
+.panel-card{padding:16px 16px 4px}
+.session{padding:16px;margin-bottom:12px}
+.session-head{margin-bottom:12px;font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;color:var(--md-sys-color-on-surface-variant)}
+.panel-heading{
+  margin:20px 4px 8px;font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;
+  color:var(--md-sys-color-on-surface-variant);
+}
+.panel-heading:first-child{margin-top:0}
+:root[data-theme] .panel-heading svg,
+:root[data-theme] .settings-link svg,
+:root[data-theme] .settings-list svg{color:var(--md-sys-color-primary);width:20px;height:20px}
+:root[data-theme] .panel-card .field label,
+:root[data-theme] .session-head,
+:root[data-theme] .preview-item span{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme] .settings-link,
+:root[data-theme] .settings-list button,
+:root[data-theme] .reminder-switch{color:var(--md-sys-color-on-surface);border-color:var(--md-sys-color-outline-variant)}
+.settings-list{border-radius:var(--md-shape-l);overflow:hidden;border:1px solid var(--md-sys-color-outline-variant)}
+.settings-list button{
+  min-height:56px!important;padding:0 16px!important;font-size:14px!important;line-height:20px!important;
+  font-weight:500!important;letter-spacing:.1px;background:transparent;
+}
+.settings-list button+button{border-top:1px solid var(--md-sys-color-outline-variant)}
+.settings-list button:active{background:var(--md-sys-color-surface-container-high)}
+.settings-list button b{color:var(--md-sys-color-on-surface-variant);font-size:18px;font-weight:400}
+.settings-link{min-height:52px;font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;border-top:1px solid var(--md-sys-color-outline-variant);margin-top:4px;padding-top:4px}
+.settings-panel .version{margin:20px 4px 0;text-align:left;font-size:11px;line-height:16px;letter-spacing:.5px;color:var(--md-sys-color-on-surface-variant)}
+
+/* M3 switch（轨道 + 滑块），关闭态 surfaceContainerHighest / outline */
+.reminder-switch{font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;min-height:48px}
+.reminder-switch input{
+  appearance:none;width:52px;height:32px;border-radius:var(--md-shape-full);
+  border:2px solid var(--md-sys-color-outline);background:var(--md-sys-color-surface-container-highest);
+  position:relative;transition:background-color var(--md-dur-short) var(--md-ease-standard),border-color var(--md-dur-short) var(--md-ease-standard);
+}
+.reminder-switch input:after{
+  content:'';width:16px;height:16px;position:absolute;left:4px;top:6px;border-radius:50%;
+  background:var(--md-sys-color-outline);transition:transform var(--md-dur-medium) var(--md-ease-emphasized),background-color var(--md-dur-short) linear,width var(--md-dur-short) linear,height var(--md-dur-short) linear;
+}
+.reminder-switch input:checked{background:var(--md-sys-color-primary);border-color:var(--md-sys-color-primary)}
+.reminder-switch input:checked:after{
+  background:var(--md-sys-color-on-primary);width:24px;height:24px;left:2px;top:2px;transform:translateX(20px);
+}
+:root[data-theme] .permission-status,
+:root[data-theme] .note{
+  background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface-variant);
+  border-radius:var(--md-shape-m);padding:12px 14px;line-height:1.6;
+  font-size:12px;letter-spacing:.4px;
+}
+:root[data-theme] .note.warn{background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)}
+.permission-actions{margin-top:12px}
+
+/* M3 segmented button（设置 / 导入用） */
+:root[data-theme] .settings-tabs,
+:root[data-theme] .segmented{
+  border:1px solid var(--md-sys-color-outline);border-radius:var(--md-shape-full);
+  padding:2px;background:transparent;gap:0;
+}
+:root[data-theme] .settings-tabs button,
+:root[data-theme] .segmented label{
+  color:var(--md-sys-color-on-surface);min-height:36px;border-radius:var(--md-shape-full);
+  font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;background:transparent;
+}
+:root[data-theme] .settings-tabs button.selected,
+:root[data-theme] .segmented label:has(input:checked){
+  color:var(--md-sys-color-on-secondary-container);background:var(--md-sys-color-secondary-container);box-shadow:none;
+}
+.settings-tabs button+button,.segmented label+label{border-left:1px solid var(--md-sys-color-outline)}
+
+/* -------------------------------------------------------- 14. Import page */
+:root[data-theme] .import-sources,
+:root[data-theme] .import-files{
+  background:var(--md-sys-color-surface-container-low);border:1px solid var(--md-sys-color-outline-variant);
+  border-radius:var(--md-shape-l);overflow:hidden;
+}
+:root[data-theme] .import-page .import-source{
+  min-height:72px;background:transparent;color:var(--md-sys-color-on-surface);padding:16px;border:0;
+}
+:root[data-theme] .import-page .import-source:active{background:var(--md-sys-color-surface-container-high)}
+:root[data-theme] .import-page .import-source+.import-source,
+:root[data-theme] .import-page .import-template{border-top:1px solid var(--md-sys-color-outline-variant)}
+:root[data-theme] .import-page .source-icon,
+:root[data-theme] .source-icon.file,
+:root[data-theme] .source-icon.globe{
+  width:44px;height:44px;border-radius:var(--md-shape-m);
+  background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);
+}
+:root[data-theme] .source-copy strong{font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px}
+:root[data-theme] .source-copy small,
+:root[data-theme] .import-section-label,
+:root[data-theme] .import-help,
+:root[data-theme] .version{color:var(--md-sys-color-on-surface-variant)}
+.import-section-label{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;margin:8px 4px 10px}
+.import-section-label:not(:first-child){margin-top:24px}
+:root[data-theme] .import-page .import-template{
+  background:transparent;color:var(--md-sys-color-primary);min-height:72px;padding:14px 16px;
+  font-size:12px;line-height:16px;gap:12px;text-align:left;font-weight:400;
+}
+.import-template .template-copy strong{font-size:14px;line-height:20px;font-weight:500;color:var(--md-sys-color-on-surface)}
+.import-template .template-copy small{font-size:12px;line-height:16px;letter-spacing:.4px;color:var(--md-sys-color-on-surface-variant)}
+.import-template .template-download{
+  display:flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:36px;
+  border-radius:var(--md-shape-full);padding:8px 16px;
+  background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);
+  font-size:13px;line-height:18px;font-weight:500;
+}
+.import-template .template-download svg{width:18px;height:18px}
+.import-template .template-download span{font-size:13px!important;font-weight:500!important;letter-spacing:.1px}
+:root[data-theme] .import-page .import-help{margin:16px 4px 0;text-align:left;font-size:11px;line-height:16px;letter-spacing:.5px}
+
+/* ------------------------------------------------- 15. Editors / previews */
+:root[data-theme] .course-editor-sheet{background:var(--md-sys-color-surface-container-low)}
+.course-editor-sheet .sheet-head{padding:24px 24px 8px;min-height:0;border-bottom:0}
+.course-editor-sheet .sheet-head h2{font-size:22px;line-height:28px;font-weight:500}
+.course-editor-sheet .sheet-body{padding-top:4px;padding-bottom:20px}
+.course-basics{gap:16px;margin:0 0 24px}
+.course-name-row{grid-template-columns:minmax(0,1fr) 52px;gap:10px}
+.course-editor-sheet #course-form .field{position:relative;gap:0;margin:0 0 16px;min-width:0}
+.course-editor-sheet #course-form .field>label{
+  position:absolute;top:10px;left:16px;right:12px;font-size:11px;line-height:16px;
+  font-weight:500;letter-spacing:.5px;color:var(--md-sys-color-on-surface-variant);
+  pointer-events:none;z-index:1;overflow:hidden;white-space:nowrap;
+  transition:top var(--md-dur-short) var(--md-ease-standard),
+             font-size var(--md-dur-short) var(--md-ease-standard),
+             color var(--md-dur-short) var(--md-ease-standard);
+}
+/* 空值且未聚焦：label 落回输入框中部（M3 filled field 空态） */
+.course-editor-sheet #course-form .field.is-empty>label{
+  top:16px;font-size:16px;line-height:24px;letter-spacing:.5px;font-weight:400;
+}
+:root[data-theme] .course-editor-sheet #course-form .field>input,
+:root[data-theme] .course-editor-sheet #course-form .field>select,
+:root[data-theme] .course-editor-sheet #course-form .session .field>input,
+:root[data-theme] .course-editor-sheet #course-form .session .field>select,
+:root[data-theme] .course-editor-sheet #course-form .field>.md-control-trigger{
+  height:56px;min-height:56px;padding:24px 16px 6px;
+  border:0;border-bottom:1px solid var(--md-sys-color-outline);
+  border-radius:var(--md-shape-xs) var(--md-shape-xs) 0 0;
+  background:var(--md-sys-color-surface-container-highest);color:var(--md-sys-color-on-surface);
+  font-size:16px;line-height:24px;letter-spacing:.5px;
+}
+:root[data-theme] .course-editor-sheet #course-form .field>input:focus,
+:root[data-theme] .course-editor-sheet #course-form .field>select:focus,
+:root[data-theme] .course-editor-sheet #course-form .field>.md-control-trigger[aria-expanded=true]{
+  box-shadow:inset 0 -2px 0 var(--md-sys-color-primary);border-bottom-color:var(--md-sys-color-primary);
+}
+.course-editor-sheet .course-name-row .color-ring{
+  width:48px;height:48px;min-height:48px;padding:3px;align-self:center;box-shadow:none;
+  border:1px solid var(--md-sys-color-outline-variant);
+}
+.course-editor-sheet .course-name-row .color-ring span{border:3px solid var(--md-sys-color-surface-container-low);box-shadow:none}
+.course-time-heading{gap:8px;margin:0 0 12px;font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px}
+.course-time-heading svg{width:20px;height:20px;color:var(--md-sys-color-primary)}
+:root[data-theme] .course-editor-sheet .session{
+  padding:16px 16px 0;border:1px solid var(--md-sys-color-outline-variant);border-radius:var(--md-shape-l);
+  background:var(--md-sys-color-surface-container);margin:0 0 12px;
+}
+.course-editor-sheet .session .row{gap:12px}
+:root[data-theme] .course-editor-sheet .session-head .button{
+  background:transparent;color:var(--md-sys-color-error);min-height:32px;padding:6px 12px;font-size:12px;border:0;
+}
+:root[data-theme] .course-editor-sheet .add-session-button{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  border:1px solid var(--md-sys-color-outline);background:transparent;color:var(--md-sys-color-primary);
+  min-height:40px;font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;border-radius:var(--md-shape-full);
+}
 .add-session-button svg{width:18px;height:18px}
-.course-editor-sheet .sheet-actions .button{min-height:48px;font-size:14px;line-height:20px}
-@media(max-width:350px){.course-editor-sheet .session{padding-inline:10px}.course-editor-sheet .session .row{gap:7px}.course-editor-sheet #course-form .field>label{font-size:10px;left:10px}:root[data-theme] .course-editor-sheet #course-form .field>input,:root[data-theme] .course-editor-sheet #course-form .field>select{font-size:13px;padding-inline:10px}.course-name-row{gap:10px}}
+.course-editor-sheet .sheet-actions .button{min-height:40px;font-size:14px;line-height:20px}
 
-.md-control-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--md-outline);border-radius:12px;background:var(--md-input);color:var(--md-text);font-size:14px;text-align:left;font-weight:400}
-.md-control-trigger svg{width:18px;height:18px;flex:none;color:var(--md-muted)}.md-control-value{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.md-control-trigger:focus-visible,.md-control-trigger[aria-expanded=true]{outline:2px solid var(--md-primary);outline-offset:-1px}
-:root[data-theme] .course-editor-sheet #course-form .field>.md-control-trigger{height:60px;padding:25px 12px 8px;border:0;border-bottom:1px solid var(--md-outline);border-radius:12px 12px 3px 3px;background:var(--md-input);color:var(--md-text);font-size:15px;line-height:22px}
-.period-row .md-control-trigger{padding:9px 6px;justify-content:center;font-size:13px;min-height:48px}.period-row .md-control-trigger svg{width:14px;height:14px}
-.md-picker-overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#080e175c;padding:24px;animation:mdPickerFade .16s ease-out both}
-.md-picker-dialog{width:min(100%,352px);max-height:calc(100dvh - 48px);display:flex;flex-direction:column;background:var(--md-panel);color:var(--md-text);border-radius:28px;padding:24px 0 12px;box-shadow:0 6px 24px #0002;overflow:hidden;animation:mdPickerEnter .2s cubic-bezier(.2,0,0,1) both}
-.md-picker-dialog h2{font-size:21px;font-weight:600;line-height:1.35;margin:0;padding:0 24px 18px;color:var(--md-text)}
+/* 颜色选择器 */
+:root[data-theme] .color-picker{background:transparent}
+.color-picker-title{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;color:var(--md-sys-color-on-surface-variant);margin-bottom:12px}
+.color-field{border-radius:var(--md-shape-m)}
+.color-sample{height:52px;width:60px;border-radius:var(--md-shape-m);border:1px solid var(--md-sys-color-outline-variant)}
+.color-picker-value{align-items:flex-end}
+
+/* 周期 / 节次编辑 */
+:root[data-theme] .period-row{border-color:var(--md-sys-color-outline-variant);background:transparent}
+:root[data-theme] .period-row:nth-child(odd){background:var(--md-sys-color-surface-container)}
+:root[data-theme] .period-number,
+:root[data-theme] .period-column-head{color:var(--md-sys-color-on-surface-variant);font-weight:500;letter-spacing:.5px}
+.period-row input{min-height:44px;padding:10px 8px!important;font-size:13px;line-height:18px;text-align:center}
+.period-column-head{font-size:12px;line-height:16px}
+
+/* 预览条目 */
+.preview-item{border-left:4px solid var(--md-sys-color-primary);padding:12px 14px}
+.preview-item strong{font-size:14px;line-height:20px;font-weight:500}
+.preview-item span{font-size:12px;line-height:16px;letter-spacing:.4px;color:var(--md-sys-color-on-surface-variant)}
+
+/* 带背景的课表 */
+.grid-scroll.has-background .slot{background:rgba(255,255,255,.04)}
+:root[data-theme] .grid-scroll.has-background .period-label{background:rgba(255,255,255,.55);color:var(--md-sys-color-on-surface)}
+:root[data-theme] .grid-scroll.has-background .slot.todaycol{background:rgba(0,100,145,.10)}
+:root[data-theme] .grid-scroll.has-background .empty-tip{background:rgba(255,255,255,.85);border-radius:var(--md-shape-s);padding:10px 12px}
+
+/* ------------------------------------------------ 16. Picker（选择器） */
+.md-control-trigger{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;
+  min-height:52px;padding:14px 16px;border:1px solid var(--md-sys-color-outline);
+  border-radius:var(--md-shape-xs);background:var(--md-sys-color-surface-container-lowest);
+  color:var(--md-sys-color-on-surface);font-size:16px;line-height:24px;text-align:left;font-weight:400;
+}
+.md-control-trigger svg{width:20px;height:20px;flex:none;color:var(--md-sys-color-on-surface-variant)}
+.md-control-value{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.md-control-trigger:focus-visible,
+.md-control-trigger[aria-expanded=true]{outline:2px solid var(--md-sys-color-primary);outline-offset:-1px}
+.period-row .md-control-trigger{padding:10px 8px;justify-content:center;font-size:13px;min-height:44px;border-radius:var(--md-shape-xs)}
+.period-row .md-control-trigger svg{width:14px;height:14px}
+.md-picker-overlay{background:var(--md-scrim)}
+.md-picker-dialog{
+  background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface);
+  border-radius:var(--md-shape-xl);padding:24px 0 12px;box-shadow:var(--md-elev-3);
+}
+.md-picker-dialog h2{font-size:22px;line-height:28px;font-weight:400;letter-spacing:0;padding:0 24px 16px;color:var(--md-sys-color-on-surface)}
+.md-choice-list{padding:0 12px}
+.md-choice{
+  min-height:56px;gap:16px;padding:14px 16px;border-radius:var(--md-shape-s);
+  color:var(--md-sys-color-on-surface);font-size:16px;line-height:24px;font-weight:400;letter-spacing:.5px;
+}
+.md-choice.chosen{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container)}
+.md-choice:active{background:var(--md-sys-color-surface-container-highest)}
+.md-radio{width:20px;height:20px;flex:none;border:2px solid var(--md-sys-color-on-surface-variant);border-radius:50%}
+.chosen .md-radio{border-color:var(--md-sys-color-primary)}
+.chosen .md-radio:after{background:var(--md-sys-color-primary)}
+.md-picker-actions{padding:12px 20px 0;gap:8px}
+.md-dialog-button{
+  border:0;border-radius:var(--md-shape-full);background:transparent;color:var(--md-sys-color-primary);
+  min-height:40px;padding:10px 24px;font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;
+}
+.md-dialog-button.primary{background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)}
+.md-calendar-selected{padding:0 24px 12px;font-size:24px;line-height:32px;font-weight:400;color:var(--md-sys-color-on-surface)}
+.md-calendar-nav{padding:0 16px 8px;gap:8px}
+.md-calendar-nav button{min-width:40px;min-height:40px;border-radius:var(--md-shape-full);color:var(--md-sys-color-on-surface)}
+.md-calendar-nav .md-month-title{font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px}
+.md-calendar-grid{padding:0 16px;gap:2px}
+.md-calendar-grid .md-weekday{color:var(--md-sys-color-on-surface-variant);font-size:11px;line-height:16px;font-weight:500;letter-spacing:.5px}
+.md-calendar-grid button{border-radius:var(--md-shape-full);color:var(--md-sys-color-on-surface);font-size:13px}
+.md-calendar-grid button.is-today{border-color:var(--md-sys-color-primary)}
+.md-calendar-grid button.chosen{background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)}
+.md-month-grid{gap:8px;padding:8px 24px}
+.md-month-grid button{
+  min-height:44px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-shape-full);
+  background:transparent;color:var(--md-sys-color-on-surface);font-size:14px;font-weight:500;
+}
+.md-month-grid button.chosen{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);border-color:transparent}
+.md-time-fields{padding:0 24px;gap:12px}
+.md-time-fields label{color:var(--md-sys-color-on-surface-variant);font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;gap:6px}
+.md-time-fields input{
+  height:80px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-shape-m);
+  background:var(--md-sys-color-surface-container-lowest);color:var(--md-sys-color-on-surface);
+  font-size:38px;line-height:1.2;padding:8px;
+}
+.md-time-fields input:focus{border-color:var(--md-sys-color-primary);box-shadow:inset 0 0 0 1px var(--md-sys-color-primary);background:var(--md-sys-color-surface-container-lowest);color:var(--md-sys-color-on-surface)}
+.md-time-colon{color:var(--md-sys-color-on-surface);font-size:36px;line-height:80px}
+.md-time-hint{color:var(--md-sys-color-on-surface-variant);font-size:12px;line-height:16px;letter-spacing:.4px;margin:14px 24px 0}
+
+/* --------------------------------------------- 17. Dialog / toast / misc */
+body.dialog-open .fab,body.picker-open .fab{visibility:hidden;pointer-events:none}
+.confirm-overlay{background:var(--md-scrim)}
+.discard-dialog{
+  width:min(100%,320px);padding:24px;background:var(--md-sys-color-surface-container-high);
+  color:var(--md-sys-color-on-surface);border-radius:var(--md-shape-xl);box-shadow:var(--md-elev-3);
+}
+.discard-dialog h2{font-size:22px;line-height:28px;font-weight:400;margin:0 0 16px;color:var(--md-sys-color-on-surface)}
+.discard-dialog p{font-size:14px;line-height:20px;letter-spacing:.2px;color:var(--md-sys-color-on-surface-variant);margin-bottom:24px}
+.discard-dialog .button{padding:10px 12px;font-size:13px;min-height:40px}
+:root[data-theme] #toast{
+  background:var(--md-sys-color-inverse-surface);color:var(--md-sys-color-inverse-on-surface);
+  border-radius:var(--md-shape-xs);font-size:14px;line-height:20px;letter-spacing:.2px;
+  padding:14px 16px;box-shadow:var(--md-elev-3);
+}
+:root[data-theme] .error{color:var(--md-sys-color-error);font-size:12px;line-height:16px}
+:root[data-theme] .current-chip{
+  background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);
+  border-radius:var(--md-shape-s);min-height:28px;padding:0 10px;font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;
+}
+:root[data-theme] .update-badge{background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);border-radius:var(--md-shape-s);font-size:13px;font-weight:500}
+:root[data-theme] .update-browser{color:var(--md-sys-color-primary);font-size:13px;font-weight:500}
+:root[data-theme] .update-head{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme] .update-list{color:var(--md-sys-color-on-surface);line-height:1.6;font-size:14px;letter-spacing:.2px}
+.update-list li::marker{color:var(--md-sys-color-primary)}
+.update-title{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;color:var(--md-sys-color-on-surface-variant)}
+.update-track{background:var(--md-sys-color-surface-container-highest);height:4px;border-radius:var(--md-shape-full)}
+.update-track>div{background:var(--md-sys-color-primary);border-radius:inherit}
+.background-preview{
+  border:1px dashed var(--md-sys-color-outline);border-radius:var(--md-shape-m);
+  background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface-variant);
+  font-size:12px;letter-spacing:.4px;
+}
+.fade-label{color:var(--md-sys-color-on-surface-variant);font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px}
+#background-fade{accent-color:var(--md-sys-color-primary)}
+:root[data-theme] #background-fade{accent-color:var(--md-sys-color-primary)}
+.changelog-entry .update-list{font-size:13px;line-height:1.6}
+.listrow{padding:14px 0;gap:12px;border-bottom:1px solid var(--md-sys-color-outline-variant)}
+.listrow strong{font-size:16px;line-height:24px;font-weight:500;letter-spacing:.15px}
+.listrow small{font-size:12px;line-height:16px;letter-spacing:.4px;color:var(--md-sys-color-on-surface-variant);margin-top:2px}
+.option-row{gap:12px}
+.swatch{border-radius:var(--md-shape-s)}
+.swatch.selected{outline:2px solid var(--md-sys-color-primary);outline-offset:2px}
+.note{margin-bottom:16px}
+.warn{background:var(--md-sys-color-error-container)!important;color:var(--md-sys-color-on-error-container)!important}
+
+/* ------------------------------------------------- 18. Focus & motion */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role=tab]:focus-visible{outline:2px solid var(--md-sys-color-primary);outline-offset:2px}
+.button,.iconbtn,.navbtn,.todaybtn,.weekpill,.manage-btn,.course-card{
+  transition:background-color var(--md-dur-short) var(--md-ease-standard),
+             color var(--md-dur-short) var(--md-ease-standard),
+             box-shadow var(--md-dur-short) var(--md-ease-standard),
+             transform var(--md-dur-short) var(--md-ease-standard);
+}
+.button:active,.iconbtn:active,.navbtn:active,.todaybtn:active,.weekpill:active,.table-select:active,.manage-btn:active{transform:none;filter:none}
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+/* --------------------------------- 19. 旧 style.css 深色规则统一接管 */
+:root[data-theme=dark]{color-scheme:dark;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .shell,
+:root[data-theme=dark] .top,
+:root[data-theme=dark] .home-content{background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .brandtitle{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .brandtitle,
+:root[data-theme=dark] .table-name,
+:root[data-theme=dark] .iconbtn{color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .manage-btn{background:var(--md-sys-color-secondary-container);border-color:transparent;color:var(--md-sys-color-on-secondary-container)}
+:root[data-theme=dark] .weekpill{background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface);border-color:transparent}
+:root[data-theme=dark] .todaybtn{background:transparent;color:var(--md-sys-color-primary)}
+:root[data-theme=dark] .weekday-row{background:var(--md-sys-color-surface);border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .weekday-row .day,
+:root[data-theme=dark] .weekday-row .day b{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .weekday-row .today{background:var(--md-sys-color-primary-container)}
+:root[data-theme=dark] .weekday-row .today b,
+:root[data-theme=dark] .weekday-row .today span{color:var(--md-sys-color-on-primary-container)}
+:root[data-theme=dark] .theme-switch{border-color:transparent;color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .grid-scroll,
+:root[data-theme=dark] .timetable{background:var(--md-sys-color-surface)}
+:root[data-theme=dark] .period-label{color:var(--md-sys-color-on-surface-variant);border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .slot{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .slot.todaycol{background:var(--md-sys-color-surface-container-low)}
+:root[data-theme=dark] .empty-tip{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .bottom{background:var(--md-sys-color-surface-container);border-color:transparent}
+:root[data-theme=dark] .navbtn{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .navbtn.selected{color:var(--md-sys-color-on-surface);background:transparent}
+:root[data-theme=dark] .navbtn.selected .nav-icon-wrap{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container)}
+:root[data-theme=dark] .navbtn.action-import .nav-icon-wrap{background:transparent;border-color:transparent;color:inherit}
+:root[data-theme=dark] .sheet{background:var(--md-sys-color-surface-container-low);color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .sheet-head,
+:root[data-theme=dark] .sheet-actions,
+:root[data-theme=dark] .listrow{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .sheet-head h2,
+:root[data-theme=dark] .section-title,
+:root[data-theme=dark] .panel-heading,
+:root[data-theme=dark] .listrow strong{color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .field label,
+:root[data-theme=dark] .label,
+:root[data-theme=dark] .muted,
+:root[data-theme=dark] .listrow small,
+:root[data-theme=dark] .subtle{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .field input,
+:root[data-theme=dark] .field select,
+:root[data-theme=dark] .field textarea,
+:root[data-theme=dark] .input,
+:root[data-theme=dark] .period-row input{background:var(--md-sys-color-surface-container-lowest);border-color:var(--md-sys-color-outline);color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .field input::placeholder,
+:root[data-theme=dark] .field textarea::placeholder{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .button{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container)}
+:root[data-theme=dark] .button.primary{background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)}
+:root[data-theme=dark] .button.danger{background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)}
+:root[data-theme=dark] .button.small{background:transparent;color:var(--md-sys-color-primary);border-color:var(--md-sys-color-outline)}
+:root[data-theme=dark] .note,
+:root[data-theme=dark] .permission-status{background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .note.warn{background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)}
+:root[data-theme=dark] .session,
+:root[data-theme=dark] .panel-card,
+:root[data-theme=dark] .settings-list,
+:root[data-theme=dark] .import-source,
+:root[data-theme=dark] .import-other,
+:root[data-theme=dark] .preview-item{background:var(--md-sys-color-surface-container-low);border-color:var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .panel-card .field input{background:var(--md-sys-color-surface-container-lowest)}
+:root[data-theme=dark] .session-head,
+:root[data-theme=dark] .panel-card .field label,
+:root[data-theme=dark] .preview-item span{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .settings-tabs,
+:root[data-theme=dark] .segmented{background:transparent;border-color:var(--md-sys-color-outline)}
+:root[data-theme=dark] .settings-tabs button,
+:root[data-theme=dark] .segmented label{color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .settings-tabs button.selected,
+:root[data-theme=dark] .segmented label:has(input:checked){background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container)}
+:root[data-theme=dark] .settings-link,
+:root[data-theme=dark] .settings-list button,
+:root[data-theme=dark] .reminder-switch,
+:root[data-theme=dark] .import-other summary{color:var(--md-sys-color-on-surface);border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .settings-list button:active,
+:root[data-theme=dark] .import-source:active{background:var(--md-sys-color-surface-container-high)}
+:root[data-theme=dark] .source-copy small,
+:root[data-theme=dark] .import-help,
+:root[data-theme=dark] .import-section-label,
+:root[data-theme=dark] .version{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .source-icon,
+:root[data-theme=dark] .source-icon.file,
+:root[data-theme=dark] .source-icon.globe{background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container)}
+:root[data-theme=dark] .import-template,
+:root[data-theme=dark] .current-chip{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container)}
+:root[data-theme=dark] .import-page .import-template{background:transparent;color:var(--md-sys-color-primary)}
+:root[data-theme=dark] .import-other-body,
+:root[data-theme=dark] .settings-list button{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .period-row:nth-child(odd){background:var(--md-sys-color-surface-container)}
+:root[data-theme=dark] .period-row{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .period-number,
+:root[data-theme=dark] .period-column-head{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .color-picker{background:transparent}
+:root[data-theme=dark] .color-picker-title,
+:root[data-theme=dark] .color-ring{color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .color-ring{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .color-sample{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .background-preview{background:var(--md-sys-color-surface-container);border-color:var(--md-sys-color-outline);color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .course-card.change-marker{background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .course-card.change-marker strong{color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .course-card.change-marker span{color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .update-head{border-color:var(--md-sys-color-outline-variant)}
+:root[data-theme=dark] .update-browser{color:var(--md-sys-color-primary)}
+:root[data-theme=dark] .update-track{background:var(--md-sys-color-surface-container-highest)}
+:root[data-theme=dark] #toast{background:var(--md-sys-color-inverse-surface);color:var(--md-sys-color-inverse-on-surface)}
+:root[data-theme=dark] .iconbtn:active,
+:root[data-theme=dark] .plain:active{background:var(--md-sys-color-surface-container-high)}
+:root[data-theme=dark] .sheet-handle{background:var(--md-sys-color-on-surface-variant)}
+:root[data-theme=dark] .md-picker-dialog{background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface)}
+:root[data-theme=dark] .md-control-trigger{background:var(--md-sys-color-surface-container-lowest);color:var(--md-sys-color-on-surface);border-color:var(--md-sys-color-outline)}
+:root[data-theme=dark] #background-fade{accent-color:var(--md-sys-color-primary)}
+
+/* ---------------------------- 20. 窄屏微调（≤350dp，M3 compact 下限） */
+@media(max-width:350px){
+  .top{padding-inline:8px}
+  .brandtitle{font-size:12px}
+  .toolbar{padding-inline:8px}
+  .table-name{font-size:20px;line-height:26px}
+  .manage-btn{font-size:12px;padding:0 12px}
+  .weekpill{padding:0 10px;font-size:12px}
+  .todaybtn{padding:0 8px;font-size:12px}
+  .page-heading{padding:16px 12px 10px}
+  .page-heading h1{font-size:24px;line-height:32px}
+  .page-body,.sheet-body{padding-inline:16px}
+  .sheet-actions,.page-actions{padding-inline:16px}
+  .sheet-head{padding-inline:16px}
+  .settings-tabs button{font-size:11px!important;letter-spacing:0}
+  .source-copy small{font-size:11px}
+  .button{padding-inline:16px!important}
+  .md-picker-dialog h2{font-size:20px}
+}
+
+/* -------------------------- 21. 结构规则（原样式表承载，重写后必须保留） */
+/* 层叠顺序：弹层 < 确认框 < 提示条 < 选择器 */
+#modal-root{z-index:20}.confirm-overlay{z-index:30}#toast{z-index:40}
 .md-picker-body{overflow:auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin}
-.md-choice-list{padding:0 12px}.md-choice{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:56px;gap:16px;padding:14px 16px;text-align:left;border:0;border-radius:16px;background:transparent;color:var(--md-text);font-size:15px;line-height:1.45;font-weight:400}
-.md-choice.chosen{background:var(--md-container);color:var(--md-on-container)}.md-choice:active{background:var(--md-raised)}
-.md-radio{width:20px;height:20px;flex:none;border:2px solid var(--md-muted);border-radius:50%;display:grid;place-items:center}.chosen .md-radio{border-color:var(--md-primary)}.chosen .md-radio:after{content:'';width:10px;height:10px;border-radius:50%;background:var(--md-primary)}
-.md-picker-actions{padding:14px 20px 0;display:flex;gap:8px;justify-content:flex-end;flex:none}
-.md-dialog-button{border:0;border-radius:24px;background:transparent;color:var(--md-primary);min-height:44px;padding:10px 18px;font-size:14px;font-weight:600}.md-dialog-button.primary{background:var(--md-primary);color:var(--md-on-primary)}
-.md-calendar-selected{padding:0 24px 14px;font-size:23px;line-height:1.3;color:var(--md-on-container)}
-.md-calendar-nav{display:flex;align-items:center;justify-content:space-between;padding:0 16px 10px;gap:8px}.md-calendar-nav button{display:grid;place-items:center;border:0;min-width:40px;min-height:40px;border-radius:24px;background:transparent;color:var(--md-text)}.md-calendar-nav button svg{width:18px;height:18px}.md-calendar-nav button:first-child svg{transform:rotate(180deg)}.md-calendar-nav .md-month-title{padding:0 12px;font-size:14px;font-weight:600}
-.md-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;padding:0 16px}.md-calendar-grid>*{aspect-ratio:1;min-width:0;display:grid;place-items:center;font-size:13px}.md-calendar-grid .md-weekday{color:var(--md-muted);font-size:11px}
-.md-calendar-grid button{border:1px solid transparent;border-radius:50%;background:transparent;color:var(--md-text);padding:0}.md-calendar-grid button.is-today{border-color:var(--md-primary)}.md-calendar-grid button.chosen{background:var(--md-primary);color:var(--md-on-primary)}
-.md-month-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px 24px}.md-month-grid button{min-height:44px;border:0;border-radius:24px;background:var(--md-raised);color:var(--md-text)}.md-month-grid button.chosen{background:var(--md-container);color:var(--md-on-container)}
-.md-time-fields{display:flex;align-items:flex-end;gap:10px;padding:0 24px}.md-time-fields label{display:flex;flex:1;min-width:0;flex-direction:column;gap:8px;color:var(--md-muted);font-size:12px}
-.md-time-fields input{width:100%;height:80px;border:1px solid var(--md-outline);border-radius:14px;background:var(--md-raised);color:var(--md-text);font-size:38px;line-height:1.2;text-align:center;outline:none;padding:8px}.md-time-fields input:focus{border-color:var(--md-primary);box-shadow:0 0 0 1px var(--md-primary);background:var(--md-container);color:var(--md-on-container)}
-.md-time-colon{font-size:36px;line-height:80px;color:var(--md-text)}.md-time-hint{font-size:12px;color:var(--md-muted);margin:14px 24px 0}.md-picker-dialog .error{margin:10px 24px 0;font-size:12px}.md-picker-dialog .error:empty{display:none}
-.picker-closing{animation:mdPickerFade .15s ease-in reverse both;pointer-events:auto}.picker-closing .md-picker-dialog{animation:none}
-body.picker-open .fab{visibility:hidden;pointer-events:none}
-@keyframes mdPickerFade{from{background:#080e1700}to{background:#080e175c}}@keyframes mdPickerEnter{from{opacity:.65;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
-@media(max-width:350px){.md-picker-overlay{padding:18px}.md-picker-dialog{max-height:calc(100dvh - 36px)}.md-picker-dialog h2{font-size:20px}.md-choice{font-size:14px}.md-calendar-grid{padding-inline:12px}.period-row .md-control-trigger{gap:3px;font-size:12px}.period-row .md-control-trigger svg{display:none}}
+.md-picker-body .md-choice-list{padding:0 12px}
+.md-calendar-grid>*{aspect-ratio:1;min-width:0;display:grid;place-items:center;font-size:13px}
+.md-calendar-grid button{border:1px solid transparent;padding:0;background:transparent}
+.md-calendar-nav button svg{width:18px;height:18px}
+.md-calendar-nav button:first-child svg{transform:rotate(180deg)}
+.md-picker-dialog .error{margin:10px 24px 0;font-size:12px;line-height:16px}
+.md-picker-dialog .error:empty{display:none}
+.md-time-fields{border:0}
+.md-choice.chosen .md-radio:after{content:'';width:10px;height:10px;border-radius:50%}
+.md-radio{display:grid;place-items:center}
+.picker-closing{animation:mdPickerFade .15s ease-in reverse both;pointer-events:auto}
+.picker-closing .md-picker-dialog{animation:none}
+.reminder-test-status:empty{display:none}
+.reminder-test{width:100%;margin:0 0 4px}
+/* CSV 模板行：标题与说明必须上下两行 */
+.import-template .template-copy{display:flex;flex:1;flex-direction:column;gap:5px;min-width:0}
+.import-template .template-copy strong,
+.import-template .template-copy small{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.import-template .template-download{flex:0 0 auto}
+.color-ring{display:grid;place-items:center;flex:none;padding:4px;border-radius:50%;
+  background:conic-gradient(#f26770,#f0b553,#6fb97d,#48afb5,#648bd1,#ad78be,#f26770)}
+.color-ring span{display:block;width:100%;height:100%;border-radius:50%}
+.color-ring:focus-visible{outline:2px solid var(--md-sys-color-primary);outline-offset:2px}
+/* 编辑页的时段卡片内，字段之间保持 12dp 呼吸 */
+.course-editor-sheet .session .row{gap:12px}
+.course-editor-sheet #course-form .course-basics>.field,
+.course-editor-sheet #course-form .course-name-row>.field{margin:0}
+
+/* ------------------------------- 22. 转场动效（M3 motion，全部可被减少动效关闭） */
+@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes weekInNext{from{opacity:.55;transform:translateX(16px)}to{opacity:1;transform:none}}
+@keyframes weekInPrev{from{opacity:.55;transform:translateX(-16px)}to{opacity:1;transform:none}}
+@keyframes itemIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.main-page:not([hidden]){animation:pageIn 240ms var(--md-ease-emphasized) both}
+.timetable.week-next{animation:weekInNext 200ms var(--md-ease-emphasized) both}
+.timetable.week-prev{animation:weekInPrev 200ms var(--md-ease-emphasized) both}
+.import-source,.settings-list button,.panel-card,.preview-item{animation:itemIn 220ms var(--md-ease-standard) both}
+.import-sources .import-source:nth-child(2),.settings-list button:nth-child(2),.preview-item:nth-child(2){animation-delay:35ms}
+.import-sources .import-source:nth-child(3),.settings-list button:nth-child(3),.preview-item:nth-child(3){animation-delay:70ms}
+.settings-list button:nth-child(4),.preview-item:nth-child(4){animation-delay:105ms}
+.settings-list button:nth-child(5){animation-delay:140ms}
+.fab{transition:opacity 150ms var(--md-ease-standard),transform 200ms var(--md-ease-emphasized),box-shadow 150ms var(--md-ease-standard),background-color 150ms var(--md-ease-standard)}
+body.dialog-open .fab,body.picker-open .fab{opacity:0;transform:scale(.85)}
+.course-card{animation:cardIn 200ms var(--md-ease-emphasized) both}
+@media(prefers-reduced-motion:reduce){
+  .main-page:not([hidden]),.timetable.week-next,.timetable.week-prev,
+  .import-source,.settings-list button,.panel-card,.preview-item,.course-card{animation:none!important}
+  :root[data-theme] .nav-indicator{transition:none}
+}

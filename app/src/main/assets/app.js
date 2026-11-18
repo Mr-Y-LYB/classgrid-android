@@ -11,6 +11,14 @@
     settings:'<path d="M4 7h8m4 0h4M4 17h4m4 0h8"/><circle cx="14" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'
   };
   const navIcon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
+  // M3 navigation bar：选中项换成实心图标。两套图标叠在同一指示器里，由 CSS 按 .selected 切换。
+  const iconsOn={
+    home:'<path d="M3 3h7.5v7.5H3zM13.5 3H21v7.5h-7.5zM3 13.5h7.5V21H3zM13.5 13.5H21V21h-7.5z"/>',
+    import:'<path d="M11 3h2v9.1l3.05-3.05 1.42 1.42L12 16l-5.47-5.53 1.42-1.42L11 12.1z"/><path d="M4.5 16.5h15V21h-15z"/>',
+    settings:'<path d="M3 6.2h6.1v1.6H3zm8.8 0H21v1.6h-9.2zM3 16.2h4.1v1.6H3zm7 0H21v1.6h-11z"/><circle cx="11.6" cy="7" r="2.6"/><circle cx="9.7" cy="17" r="2.6"/>'
+  };
+  const navGlyph=(name,filled)=>`<svg viewBox="0 0 24 24" aria-hidden="true" class="nav-icon-${filled?'on':'off'}" fill="${filled?'currentColor':'none'}" stroke="currentColor" stroke-width="${filled?1.1:1.8}" stroke-linecap="round" stroke-linejoin="round">${filled?iconsOn[name]:icons[name]}</svg>`;
+  const navItem=(name,label)=>`<span class="nav-icon-wrap">${navGlyph(name,false)}${navGlyph(name,true)}</span><span>${label}</span>`;
   const panelIcons={
     timetable:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-13 4h3m-3 3h3m4-3h2"/>',
     alarm:'<circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2M4 3 2 6m16-3 2 3M7 20l-2 2m12-2 2 2"/>',
@@ -30,6 +38,7 @@
   const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
   let page='home',settingsTab='table',dirtyTarget=null,dirtyInitial='',pendingLeave=null;
   const draftBaselines=new WeakMap();
+  let lastRenderedWeek=null;
   let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:false,exact:false,scheduled:0,nextAt:0,error:''};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
   catch(e){state=M.defaultState();}
@@ -56,7 +65,7 @@
   function applyTheme(){
     const dark=state.settings.theme==='dark';
     document.documentElement.dataset.theme=dark?'dark':'light';
-    const meta=$('meta[name="theme-color"]');if(meta)meta.content=dark?'#111318':'#f8f9ff';
+    const meta=$('meta[name="theme-color"]');if(meta)meta.content=dark?'#111416':'#f9f9fc';
     const switcher=$('#theme-switch');if(switcher){switcher.innerHTML=themeIcon(dark);switcher.setAttribute('aria-label',dark?'切换到白天模式':'切换到夜间模式');switcher.title=dark?'白天模式':'夜间模式';}
     if(native?.setTheme)native.setTheme(dark);
   }
@@ -80,7 +89,7 @@
     markersById=new Map(markers.map(x=>[x.id,x]));
     $('#app').innerHTML=`<main class="shell">
       <div class="top"><div class="brand"><img class="brandmark" src="icon-a.svg" alt="" aria-hidden="true"><span class="brandtitle">ClassGrid</span></div>
-        <button class="manage-btn" data-action="manage">切换／新建</button></div>
+        <button class="manage-btn" data-action="manage" aria-label="切换或新建课表" title="切换／新建课表">${panelIcon('timetable')}</button></div>
       <div class="home-content"><div class="toolbar"><strong class="table-name" title="${esc(table.name)}">${esc(table.name)}</strong>
         <div class="weeknav"><button class="iconbtn" data-action="prev" aria-label="上一周">‹</button>
           <button class="weekpill" data-action="week">第 ${week} 周</button>
@@ -90,16 +99,22 @@
       <div class="grid-scroll"><div class="timetable" id="timetable"><img class="timetable-background" id="table-background" alt="" hidden><div class="timetable-background-veil" id="table-background-veil" hidden></div>${table.periods.map((p,n)=>
         `<div class="period-label" style="height:72px;grid-row:${n+1};grid-column:1"><b>${n+1}</b><small>${esc(p.start)}</small><small class="period-end">${esc(p.end)}</small></div>`+
         days.map((_,i)=>`<div class="slot ${dates[i]===today?'todaycol':''}" style="height:72px;grid-row:${n+1};grid-column:${i+2}"></div>`).join('')).join('')}
-        ${occurrences.length||markers.length?'':`<div class="empty-tip">本周暂无课程</div>`}</div></div>
+        ${occurrences.length||markers.length?'':`<div class="empty-tip"><span class="empty-title">本周暂无课程</span><span class="empty-sub">点右下角「＋」添加一门课，或用底部「导入」从教务系统、Excel 表格导入</span></div>`}</div></div>
       </div><section id="page-root" class="main-page" hidden></section><button class="fab" data-action="add" aria-label="添加课程">${navIcon('add')}</button>
-      <nav class="bottom" aria-label="主导航"><button class="navbtn selected" data-action="home" aria-current="page">${navIcon('home')}<span>课表</span></button>
-        <button class="navbtn action-import" data-action="import">${navIcon('import')}<span>导入</span></button>
-        <button class="navbtn" data-action="settings">${navIcon('settings')}<span>设置</span></button></nav>
+      <nav class="bottom" aria-label="主导航"><button class="navbtn selected" data-action="home" aria-current="page">${navItem('home','课表')}</button>
+        <button class="navbtn action-import" data-action="import">${navItem('import','导入')}</button>
+        <button class="navbtn" data-action="settings">${navItem('settings','设置')}</button></nav>
       </main>`;
     positionCards(occurrences,markers,conflicts);
     let touch=null;const scroller=$('.grid-scroll');
     applyBackground(table);
     applyTheme();
+    moveNavIndicator(false);
+    // 左右切周时给课表一个方向感（M3 fade-through 的方向变体）
+    const grid=$('#timetable');
+    if(grid&&lastRenderedWeek!==null&&lastRenderedWeek!==week)
+      grid.classList.add(week>lastRenderedWeek?'week-next':'week-prev');
+    lastRenderedWeek=week;
     if(page==='import')openImport();else if(page==='settings')openSettings();
     scroller.addEventListener('touchstart',e=>{touch={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
     scroller.addEventListener('touchend',e=>{if(!touch)return;const dx=e.changedTouches[0].clientX-touch.x,dy=e.changedTouches[0].clientY-touch.y;
@@ -131,7 +146,7 @@
       const count=overlapping.length,index=overlapping.findIndex(x=>x.id===entry.id);
       const marker=!!entry.exceptionId;
       const button=document.createElement('button');button.className='course-card'+(marker?' change-marker':'')+(conflicts.has(entry.id)?' conflict':'')+(entry.moved?' moved':'');
-      if(!marker){button.style.background=entry.color;button.style.color='#fff';}
+      if(!marker){const pair=courseTone(entry.color);button.style.background=pair.bg;button.style.color=pair.fg;button.style.boxShadow='inset 0 0 0 1px '+pair.line;}
       else button.style.setProperty('--course-color',entry.color);
       button.style.top=((entry.start-1)*72+3)+'px';
       button.style.height=((entry.end-entry.start+1)*72-6)+'px';
@@ -153,6 +168,20 @@
       fitCardText(button,marker);
     }
   }
+  // M3 的「容器色 / 容器上文字」对：课程自带的自定义色只作为色相来源，
+  // 背景取浅调容器色、文字取深调同色，避免纯色块 + 白字在浅色主题下发灰。
+  function courseTone(hex){
+    const dark=state.settings.theme==='dark';
+    let hsv;
+    try{hsv=hexToHsv(hex);}catch(e){hsv={h:200,s:.4,v:.7};}
+    const {h,s}=hsv;
+    const soft=Math.min(Math.max(s*.42,.06),.32);
+    return {
+      bg:hsvToHex({h,s:soft,v:dark?.21:.96}),
+      fg:hsvToHex({h,s:Math.min(1,s*.9+.05),v:dark?.96:.30}),
+      line:hsvToHex({h,s:soft,v:dark?.34:.86})
+    };
+  }
   function fitCardText(card,marker){
     const title=card.querySelector('strong'),secondary=card.querySelector('.course-room')||card.querySelector('span');
     const style=getComputedStyle(card);
@@ -172,6 +201,28 @@
     if(!root)return '';
     return JSON.stringify([...root.querySelectorAll('input,select,textarea')].filter(x=>!x.closest('#color-picker')&&x.id!=='background-fade').map(x=>[x.id||x.className,x.type==='checkbox'||x.type==='radio'?x.checked:x.value]))+'|'+(root.querySelector('#color-choice')?.dataset.color||'');
   }
+  // 填充式输入框：值为空时 label 居中显示，有值或聚焦时浮到顶部（M3 filled field 规范）
+  function syncFieldStates(root){
+    (root||document).querySelectorAll('.field').forEach(field=>{
+      const control=field.querySelector('input,select,textarea');
+      if(!control)return;
+      const empty=control.tagName!=='SELECT'&&!control.getAttribute('placeholder')
+        &&String(control.value||'').trim()==='';
+      field.classList.toggle('is-empty',empty);
+    });
+  }
+  document.addEventListener('input',e=>{
+    const form=e.target.closest&&e.target.closest('#course-form');
+    if(form)syncFieldStates(form);
+  },true);
+  document.addEventListener('focusin',e=>{
+    const field=e.target.closest&&e.target.closest('.field');
+    if(field)field.classList.remove('is-empty');
+  },true);
+  document.addEventListener('focusout',e=>{
+    const form=e.target.closest&&e.target.closest('#course-form');
+    if(form)syncFieldStates(form);
+  },true);
   function watchDraft(root){dirtyTarget=root;dirtyInitial=fingerprint(root);draftBaselines.set(root,dirtyInitial);queueMicrotask(()=>{if(dirtyTarget===root){dirtyInitial=fingerprint(root);draftBaselines.set(root,dirtyInitial);}});}
   function isDirty(includePage=false){const sheet=$('#modal-root .sheet');return (includePage?[sheet,$('#page-root')]:[sheet||$('#page-root')]).some(root=>root?.isConnected&&!root.hidden&&draftBaselines.has(root)&&fingerprint(root)!==draftBaselines.get(root));}
   function leave(after,includePage=false){
@@ -186,6 +237,30 @@
     if(page===to&&!$('#modal-root').firstElementChild)return;
     leave(()=>{close();page=to;dirtyTarget=null;render();},true);
   }
+  // 底部导航的选中指示器是一块独立滑块：切换目的地时从旧图标平移到新图标
+  function moveNavIndicator(animate){
+    const nav=document.querySelector('.bottom');
+    if(!nav)return;
+    let indicator=nav.querySelector('.nav-indicator');
+    if(!indicator){
+      indicator=document.createElement('span');
+      indicator.className='nav-indicator';
+      indicator.setAttribute('aria-hidden','true');
+      nav.insertBefore(indicator,nav.firstChild);
+    }
+    const active=nav.querySelector('.navbtn.selected');
+    const wrap=active&&active.querySelector('.nav-icon-wrap');
+    if(!wrap)return;
+    const navBox=nav.getBoundingClientRect(),wrapBox=wrap.getBoundingClientRect();
+    if(!animate)indicator.style.transition='none';
+    indicator.style.width=wrapBox.width+'px';
+    indicator.style.height=wrapBox.height+'px';
+    indicator.style.transform=`translate(${wrapBox.left-navBox.left}px,${wrapBox.top-navBox.top}px)`;
+    if(!animate)requestAnimationFrame(()=>requestAnimationFrame(()=>{indicator.style.transition='';}));
+  }
+  let navResizeTimer=null;
+  addEventListener('resize',()=>{clearTimeout(navResizeTimer);navResizeTimer=setTimeout(()=>moveNavIndicator(false),120);});
+  addEventListener('orientationchange',()=>setTimeout(()=>moveNavIndicator(false),260));
   function pagePanel(title,body,actions=''){
     page=title==='导入课表'?'import':'settings';
     // Returning from a subpage discards only that subpage's saved/explicitly cancelled draft.
@@ -194,6 +269,7 @@
     $('#page-root').innerHTML=`<header class="page-heading"><span>ClassGrid</span><h1>${esc(title)}</h1></header><div class="sheet-body page-body">${body}</div>${actions?`<div class="page-actions">${actions}</div>`:''}`;
     $$('.bottom .navbtn').forEach(button=>{const active=button.dataset.action===page;button.classList.toggle('selected',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
     $('.manage-btn').hidden=true;
+    moveNavIndicator(true);
     if(page==='settings')watchDraft($('#page-root'));else dirtyTarget=null;
   }
   function modal(title,body,actions=''){
@@ -225,7 +301,7 @@
         area.addEventListener('touchmove',e=>{if(touch&&e.touches[0].clientY>touch.y+8&&Math.abs(e.touches[0].clientX-touch.x)<e.touches[0].clientY-touch.y)e.preventDefault();},{passive:false});
       }
     }
-    watchDraft(sheet);
+    watchDraft(sheet);syncFieldStates(sheet);
   }
   function requestDismiss(){
     if($('#color-picker')&&!$('#color-picker').hidden){closeColorPicker();return;}

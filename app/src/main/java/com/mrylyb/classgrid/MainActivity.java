@@ -62,8 +62,8 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(248, 249, 255));
-        getWindow().setNavigationBarColor(Color.rgb(248, 249, 255));
+        getWindow().setStatusBarColor(Color.rgb(249, 249, 252));
+        getWindow().setNavigationBarColor(Color.rgb(243, 243, 246));
         getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         updater = new UpdateManager(this, networkWorker, this::callback);
@@ -154,8 +154,8 @@ public class MainActivity extends Activity {
     public class Bridge {
         @JavascriptInterface public void setTheme(boolean dark) {
             runOnUiThread(() -> {
-                getWindow().setStatusBarColor(dark ? Color.rgb(17, 19, 24) : Color.rgb(248, 249, 255));
-                getWindow().setNavigationBarColor(dark ? Color.rgb(17, 19, 24) : Color.rgb(248, 249, 255));
+                getWindow().setStatusBarColor(dark ? Color.rgb(17, 20, 22) : Color.rgb(249, 249, 252));
+                getWindow().setNavigationBarColor(dark ? Color.rgb(25, 28, 30) : Color.rgb(243, 243, 246));
                 getWindow().getDecorView().setSystemUiVisibility(dark ? 0 :
                     android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
                     android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);

@@ -60,12 +60,32 @@ public class MainActivity extends Activity {
         }
     };
 
+    /**
+     * 系统栏配色 + 图标明暗。
+     * API 30+ 用 WindowInsetsController（不会触发整个窗口装饰重绘）；
+     * 旧系统才退回 setSystemUiVisibility —— 后者每次调用都会让窗口重新布局一次，
+     * 在日夜切换时表现为“闪一下”。
+     */
+    private void applySystemBars(boolean dark) {
+        getWindow().setStatusBarColor(dark ? Color.rgb(17, 20, 22) : Color.rgb(249, 249, 252));
+        getWindow().setNavigationBarColor(dark ? Color.rgb(25, 28, 30) : Color.rgb(243, 243, 246));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            android.view.WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                int mask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(dark ? 0 : mask, mask);
+            }
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(dark ? 0 :
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        }
+    }
+
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(249, 249, 252));
-        getWindow().setNavigationBarColor(Color.rgb(243, 243, 246));
-        getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-            | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        applySystemBars(false);
         updater = new UpdateManager(this, networkWorker, this::callback);
         connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         web = new WebView(this);
@@ -154,11 +174,7 @@ public class MainActivity extends Activity {
     public class Bridge {
         @JavascriptInterface public void setTheme(boolean dark) {
             runOnUiThread(() -> {
-                getWindow().setStatusBarColor(dark ? Color.rgb(17, 20, 22) : Color.rgb(249, 249, 252));
-                getWindow().setNavigationBarColor(dark ? Color.rgb(25, 28, 30) : Color.rgb(243, 243, 246));
-                getWindow().getDecorView().setSystemUiVisibility(dark ? 0 :
-                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
-                    android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+                applySystemBars(dark);
             });
         }
         @JavascriptInterface public String appVersion() {

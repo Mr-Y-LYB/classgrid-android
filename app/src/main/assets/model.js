@@ -106,7 +106,7 @@
     }
     if(!raw.tables.some(t=>t.id===raw.activeId))raw.activeId=raw.tables[0]?.id||null;
     if(!raw.settings)raw.settings={remindersEnabled:false,reminderMinutes:15};
-    if(raw.settings.theme!=='dark')raw.settings.theme='light';
+    if(!['auto','light','dark'].includes(raw.settings.theme))raw.settings.theme='light';
     return raw;
   }
   function activeTable(state){return state.tables.find(t=>t.id===state.activeId)||state.tables[0];}

@@ -127,6 +127,24 @@
   --md-shadow:var(--md-elev-1);
 }
 
+/* ---- 23. 兼容层：原样式表中被我整体遗漏的选择器（属性原样搬回） ---- */
+[hidden]{display:none!important}
+:root[data-theme] .manage-btn,:root[data-theme] .weekpill{border:0;background:var(--md-panel);color:var(--md-on-container);border-radius:24px;min-height:44px;padding:9px 14px;box-shadow:none}
+.toolbar{padding:0 14px 14px;gap:4px}
+:root[data-theme] .todaybtn{min-height:40px;border-radius:22px;background:var(--md-container);color:var(--md-on-container)}
+:root[data-theme] .bottom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:auto;min-height:80px;padding:8px 16px calc(8px + env(safe-area-inset-bottom));background:var(--md-panel);border:0;gap:0;align-items:center}
+.main-page{flex:1;min-height:0;display:flex;flex-direction:column}
+:root[data-theme] .button{background:var(--md-raised);color:var(--md-on-container);border-radius:24px;min-height:48px;padding:12px 18px;font-size:14px;font-weight:600;box-shadow:none}
+.field{gap:7px;margin-bottom:16px}
+:root[data-theme] .settings-tabs,:root[data-theme] .segmented{border:1px solid var(--md-outline);border-radius:28px;padding:3px;background:transparent;gap:0}
+.import-template .template-copy{display:flex;flex:1;flex-direction:column;gap:5px;min-width:0}
+:root[data-theme] .import-template .template-download{flex:0 0 auto}
+.color-ring:before{width:20px;height:20px}
+.period-row{gap:6px}
+/* Form sheets have their own stacking and filled Material fields. */ #modal-root{z-index:20}
+.course-editor-sheet .session-head{min-height:24px;margin-bottom:14px;font-size:13px;line-height:20px}
+.md-control-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;min-height:48px;padding:12px;border:1px solid var(--md-outline);border-radius:12px;background:var(--md-input);color:var(--md-text);font-size:14px;text-align:left;font-weight:400}
+
 /* ------------------------------------------------------- 2. Base / typography */
 [hidden]{display:none!important}
 :root{font-size:14px}
@@ -151,14 +169,14 @@
 .brandtitle{font-size:13px;line-height:18px;font-weight:500;letter-spacing:.1px;color:var(--md-sys-color-on-surface-variant)}
 :root[data-theme] .brandtitle,:root[data-theme] .table-name,:root[data-theme] .iconbtn{color:var(--md-sys-color-on-surface)}
 
-/* 「切换／新建」= M3 顶栏图标按钮（40dp 触控区，无底色） */
+/* 「切换／新建」= M3 tonal button（secondaryContainer + full 圆角） */
 :root[data-theme] .manage-btn{
-  display:grid;place-items:center;flex:none;width:40px;height:40px;min-height:40px;padding:0;
-  border:0;border-radius:var(--md-shape-full);background:transparent;
-  color:var(--md-sys-color-on-surface-variant);box-shadow:none;
+  flex:none;border:0;background:var(--md-sys-color-secondary-container);
+  color:var(--md-sys-color-on-secondary-container);
+  border-radius:var(--md-shape-full);min-height:36px;height:36px;padding:0 16px;
+  font-size:13px;line-height:18px;font-weight:500;letter-spacing:.1px;box-shadow:none;
 }
-:root[data-theme] .manage-btn svg{width:22px;height:22px;color:inherit}
-:root[data-theme] .manage-btn:active{background:var(--md-sys-color-surface-container-high)}
+:root[data-theme] .manage-btn:active{background:color-mix(in srgb,var(--md-sys-color-secondary-container) 82%,var(--md-sys-color-on-secondary-container))}
 :root[data-theme] .manage-btn:active{background:color-mix(in srgb,var(--md-sys-color-secondary-container) 80%,var(--md-sys-color-on-secondary-container))}
 
 /* 第二行：课表名（titleLarge）+ 周切换 */
@@ -215,9 +233,13 @@
   color:var(--md-sys-color-on-surface-variant);border-right:0;
   border-bottom:1px solid var(--md-sys-color-outline-variant);opacity:.9;
 }
-:root[data-theme] .period-label b{font-size:11px;line-height:16px;font-weight:500;letter-spacing:.5px}
-:root[data-theme] .period-label small{font-size:9px;line-height:12px;letter-spacing:0;opacity:.9}
-:root[data-theme] .period-label .period-end{display:none}
+:root[data-theme] .period-label{
+  gap:1px;padding:5px 0 0;justify-content:flex-start;
+}
+:root[data-theme] .period-label b{font-size:11px;line-height:15px;font-weight:500;letter-spacing:.5px}
+:root[data-theme] .period-label small{font-size:9px;line-height:11px;letter-spacing:0;opacity:.92;white-space:nowrap}
+:root[data-theme] .period-label .period-end{opacity:.72}
+
 :root[data-theme] .slot{border-color:var(--md-sys-color-outline-variant);border-right:0;opacity:.75}
 :root[data-theme] .slot.todaycol{background:var(--md-sys-color-surface-container-low);opacity:1}
 :root[data-theme] .empty-tip{
@@ -291,7 +313,7 @@
   transition:transform 320ms var(--md-ease-emphasized),width 200ms var(--md-ease-standard),height 200ms var(--md-ease-standard);
 }
 :root[data-theme] .navbtn{position:relative;z-index:1}
-/* 图标 24dp，选中时实心图标交叉淡入并轻微放大 */
+/* 图标 24dp，选中时实心图标交叉淡入并轻微放大；按下再放大一点 */
 :root[data-theme] .nav-icon-wrap{
   display:grid;place-items:center;width:64px;height:32px;flex:none;
   border-radius:var(--md-shape-full);background:transparent;color:inherit;
@@ -305,8 +327,11 @@
 :root[data-theme] .navbtn .nav-icon-off{opacity:1;transform:scale(1)}
 :root[data-theme] .navbtn.selected{color:var(--md-sys-color-on-surface);font-weight:500}
 :root[data-theme] .navbtn.selected .nav-icon-wrap{background:transparent;color:var(--md-sys-color-on-secondary-container)}
-:root[data-theme] .navbtn.selected .nav-icon-on{opacity:1;transform:scale(1)}
+:root[data-theme] .navbtn.selected .nav-icon-on{opacity:1;transform:scale(1.06)}
 :root[data-theme] .navbtn.selected .nav-icon-off{opacity:0;transform:scale(.86)}
+/* 手指按住时图标放大到 1.18，松手回落到选中态，形成“点一下弹一下”的手感 */
+:root[data-theme] .navbtn:active .nav-icon-wrap svg{transform:scale(1.18)}
+:root[data-theme] .navbtn:active .nav-icon-wrap{background:var(--md-sys-color-surface-container-highest)}
 :root[data-theme] .navbtn.action-import:not(.selected) .nav-icon-wrap{background:transparent;border:0;color:inherit}
 :root[data-theme] .navbtn:active .nav-icon-wrap{background:var(--md-sys-color-surface-container-highest)}
 :root[data-theme] .navbtn span{font-size:12px;line-height:16px;letter-spacing:.5px;font-weight:500}
@@ -317,8 +342,7 @@
   width:56px;height:56px;border:0;border-radius:var(--md-shape-l);
   background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);
   box-shadow:var(--md-elev-3);display:grid;place-items:center;z-index:2;
-  transition:box-shadow var(--md-dur-short) var(--md-ease-standard),transform var(--md-dur-short) var(--md-ease-standard);
-}
+  transition:box-shadow var(--md-dur-short) var(--md-ease-standard),transform var(--md-dur-short) var(--md-ease-standard);bottom:calc(96px + env(safe-area-inset-bottom));display:grid;height:56px;place-items:center;position:absolute;right:20px;width:56px;z-index:2;}
 .fab svg{width:24px;height:24px}
 .fab:active{background:var(--md-sys-color-primary-container);box-shadow:var(--md-elev-1);transform:scale(.96)}
 .shell{position:relative}
@@ -472,22 +496,25 @@
 :root[data-theme] .note.warn{background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)}
 .permission-actions{margin-top:12px}
 
-/* M3 segmented button（设置 / 导入用） */
+/* 分段按钮：容器底色 + 选中胶囊，不用描边（描边叠圆角会出高光边） */
 :root[data-theme] .settings-tabs,
 :root[data-theme] .segmented{
-  border:1px solid var(--md-sys-color-outline);border-radius:var(--md-shape-full);
-  padding:2px;background:transparent;gap:0;
+  border:0;border-radius:var(--md-shape-full);
+  padding:3px;background:var(--md-sys-color-surface-container-high);gap:2px;
 }
 :root[data-theme] .settings-tabs button,
 :root[data-theme] .segmented label{
-  color:var(--md-sys-color-on-surface);min-height:36px;border-radius:var(--md-shape-full);
+  color:var(--md-sys-color-on-surface-variant);min-height:36px;border-radius:var(--md-shape-full);
   font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;background:transparent;
+  border:0;transition:background-color 150ms var(--md-ease-standard),color 150ms var(--md-ease-standard);
 }
 :root[data-theme] .settings-tabs button.selected,
 :root[data-theme] .segmented label:has(input:checked){
-  color:var(--md-sys-color-on-secondary-container);background:var(--md-sys-color-secondary-container);box-shadow:none;
+  color:var(--md-sys-color-on-secondary-container);background:var(--md-sys-color-secondary-container);
+  box-shadow:none;border:0;
 }
-.settings-tabs button+button,.segmented label+label{border-left:1px solid var(--md-sys-color-outline)}
+:root[data-theme] .settings-tabs button+button,
+:root[data-theme] .segmented label+label{border-left:0}
 
 /* -------------------------------------------------------- 14. Import page */
 :root[data-theme] .import-sources,
@@ -535,8 +562,8 @@
 .course-editor-sheet .sheet-head{padding:24px 24px 8px;min-height:0;border-bottom:0}
 .course-editor-sheet .sheet-head h2{font-size:22px;line-height:28px;font-weight:500}
 .course-editor-sheet .sheet-body{padding-top:4px;padding-bottom:20px}
-.course-basics{gap:16px;margin:0 0 24px}
-.course-name-row{grid-template-columns:minmax(0,1fr) 52px;gap:10px}
+.course-basics{gap:16px;margin:0 0 24px;display:flex;flex-direction:column;}
+.course-name-row{grid-template-columns:minmax(0,1fr) 52px;gap:10px;align-items:center;display:grid;}
 .course-editor-sheet #course-form .field{position:relative;gap:0;margin:0 0 16px;min-width:0}
 .course-editor-sheet #course-form .field>label{
   position:absolute;top:10px;left:16px;right:12px;font-size:11px;line-height:16px;
@@ -571,7 +598,7 @@
   border:1px solid var(--md-sys-color-outline-variant);
 }
 .course-editor-sheet .course-name-row .color-ring span{border:3px solid var(--md-sys-color-surface-container-low);box-shadow:none}
-.course-time-heading{gap:8px;margin:0 0 12px;font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px}
+.course-time-heading{gap:8px;margin:0 0 12px;font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;align-items:center;display:flex;}
 .course-time-heading svg{width:20px;height:20px;color:var(--md-sys-color-primary)}
 :root[data-theme] .course-editor-sheet .session{
   padding:16px 16px 0;border:1px solid var(--md-sys-color-outline-variant);border-radius:var(--md-shape-l);
@@ -601,7 +628,7 @@
 :root[data-theme] .period-row:nth-child(odd){background:var(--md-sys-color-surface-container)}
 :root[data-theme] .period-number,
 :root[data-theme] .period-column-head{color:var(--md-sys-color-on-surface-variant);font-weight:500;letter-spacing:.5px}
-.period-row input{min-height:44px;padding:10px 8px!important;font-size:13px;line-height:18px;text-align:center}
+.period-row input{min-height:44px;padding:10px 8px!important;font-size:13px;line-height:18px;text-align:center;min-width:0;}
 .period-column-head{font-size:12px;line-height:16px}
 
 /* 预览条目 */
@@ -628,57 +655,59 @@
 .md-control-trigger[aria-expanded=true]{outline:2px solid var(--md-sys-color-primary);outline-offset:-1px}
 .period-row .md-control-trigger{padding:10px 8px;justify-content:center;font-size:13px;min-height:44px;border-radius:var(--md-shape-xs)}
 .period-row .md-control-trigger svg{width:14px;height:14px}
-.md-picker-overlay{background:var(--md-scrim)}
+.md-picker-overlay{background:var(--md-scrim);align-items:center;display:flex;inset:0;justify-content:center;position:fixed;z-index:50;}
 .md-picker-dialog{
   background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface);
-  border-radius:var(--md-shape-xl);padding:24px 0 12px;box-shadow:var(--md-elev-3);
-}
+  border-radius:var(--md-shape-xl);padding:24px 0 12px;box-shadow:var(--md-elev-3);display:flex;flex-direction:column;max-height:calc(100dvh - 48px);overflow:hidden;width:min(100%,352px);}
 .md-picker-dialog h2{font-size:22px;line-height:28px;font-weight:400;letter-spacing:0;padding:0 24px 16px;color:var(--md-sys-color-on-surface)}
 .md-choice-list{padding:0 12px}
 .md-choice{
+  display:flex;align-items:center;justify-content:space-between;width:100%;
+  border:0;background:transparent;text-align:left;
   min-height:56px;gap:16px;padding:14px 16px;border-radius:var(--md-shape-s);
-  color:var(--md-sys-color-on-surface);font-size:16px;line-height:24px;font-weight:400;letter-spacing:.5px;
-}
+  color:var(--md-sys-color-on-surface);font-size:16px;line-height:24px;font-weight:400;letter-spacing:.5px;align-items:center;display:flex;justify-content:space-between;width:100%;}
 .md-choice.chosen{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container)}
 .md-choice:active{background:var(--md-sys-color-surface-container-highest)}
 .md-radio{width:20px;height:20px;flex:none;border:2px solid var(--md-sys-color-on-surface-variant);border-radius:50%}
 .chosen .md-radio{border-color:var(--md-sys-color-primary)}
-.chosen .md-radio:after{background:var(--md-sys-color-primary)}
-.md-picker-actions{padding:12px 20px 0;gap:8px}
+.chosen .md-radio:after{background:var(--md-sys-color-primary);height:10px;width:10px;}
+.md-picker-actions{padding:12px 20px 0;gap:8px;display:flex;flex:none;justify-content:flex-end;}
 .md-dialog-button{
   border:0;border-radius:var(--md-shape-full);background:transparent;color:var(--md-sys-color-primary);
   min-height:40px;padding:10px 24px;font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;
 }
 .md-dialog-button.primary{background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)}
 .md-calendar-selected{padding:0 24px 12px;font-size:24px;line-height:32px;font-weight:400;color:var(--md-sys-color-on-surface)}
-.md-calendar-nav{padding:0 16px 8px;gap:8px}
-.md-calendar-nav button{min-width:40px;min-height:40px;border-radius:var(--md-shape-full);color:var(--md-sys-color-on-surface)}
+.md-calendar-nav{padding:0 16px 8px;gap:8px;align-items:center;display:flex;justify-content:space-between;}
+.md-calendar-nav button{min-width:40px;min-height:40px;border-radius:var(--md-shape-full);color:var(--md-sys-color-on-surface);display:grid;place-items:center;}
 .md-calendar-nav .md-month-title{font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px}
-.md-calendar-grid{padding:0 16px;gap:2px}
+.md-calendar-grid{padding:0 16px;gap:2px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));}
 .md-calendar-grid .md-weekday{color:var(--md-sys-color-on-surface-variant);font-size:11px;line-height:16px;font-weight:500;letter-spacing:.5px}
 .md-calendar-grid button{border-radius:var(--md-shape-full);color:var(--md-sys-color-on-surface);font-size:13px}
 .md-calendar-grid button.is-today{border-color:var(--md-sys-color-primary)}
 .md-calendar-grid button.chosen{background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)}
-.md-month-grid{gap:8px;padding:8px 24px}
+.md-month-grid{gap:8px;padding:8px 24px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));}
 .md-month-grid button{
   min-height:44px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-shape-full);
   background:transparent;color:var(--md-sys-color-on-surface);font-size:14px;font-weight:500;
 }
 .md-month-grid button.chosen{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);border-color:transparent}
-.md-time-fields{padding:0 24px;gap:12px}
-.md-time-fields label{color:var(--md-sys-color-on-surface-variant);font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;gap:6px}
+.md-time-fields{padding:0 24px;gap:12px;align-items:flex-end;display:flex;}
+.md-time-fields label{display:flex;flex:1;min-width:0;flex-direction:column;gap:8px}
+.md-time-fields input{width:100%}
+.md-radio{display:grid;place-items:center;width:20px;height:20px;flex:none;border:2px solid var(--md-sys-color-on-surface-variant);border-radius:50%}
+.md-time-fields label{color:var(--md-sys-color-on-surface-variant);font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;gap:6px;display:flex;flex-direction:column;flex:1;min-width:0;}
 .md-time-fields input{
   height:80px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-shape-m);
   background:var(--md-sys-color-surface-container-lowest);color:var(--md-sys-color-on-surface);
-  font-size:38px;line-height:1.2;padding:8px;
-}
+  font-size:38px;line-height:1.2;padding:8px;width:100%;}
 .md-time-fields input:focus{border-color:var(--md-sys-color-primary);box-shadow:inset 0 0 0 1px var(--md-sys-color-primary);background:var(--md-sys-color-surface-container-lowest);color:var(--md-sys-color-on-surface)}
 .md-time-colon{color:var(--md-sys-color-on-surface);font-size:36px;line-height:80px}
 .md-time-hint{color:var(--md-sys-color-on-surface-variant);font-size:12px;line-height:16px;letter-spacing:.4px;margin:14px 24px 0}
 
 /* --------------------------------------------- 17. Dialog / toast / misc */
 body.dialog-open .fab,body.picker-open .fab{visibility:hidden;pointer-events:none}
-.confirm-overlay{background:var(--md-scrim)}
+.confirm-overlay{background:var(--md-scrim);display:grid;inset:0;place-items:center;position:fixed;}
 .discard-dialog{
   width:min(100%,320px);padding:24px;background:var(--md-sys-color-surface-container-high);
   color:var(--md-sys-color-on-surface);border-radius:var(--md-shape-xl);box-shadow:var(--md-elev-3);
@@ -807,7 +836,7 @@ textarea:focus-visible,
 :root[data-theme=dark] .panel-card .field label,
 :root[data-theme=dark] .preview-item span{color:var(--md-sys-color-on-surface-variant)}
 :root[data-theme=dark] .settings-tabs,
-:root[data-theme=dark] .segmented{background:transparent;border-color:var(--md-sys-color-outline)}
+:root[data-theme=dark] .segmented{background:var(--md-sys-color-surface-container-high);border:0}
 :root[data-theme=dark] .settings-tabs button,
 :root[data-theme=dark] .segmented label{color:var(--md-sys-color-on-surface)}
 :root[data-theme=dark] .settings-tabs button.selected,
@@ -898,7 +927,7 @@ textarea:focus-visible,
 .import-template .template-copy small{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .import-template .template-download{flex:0 0 auto}
 .color-ring{display:grid;place-items:center;flex:none;padding:4px;border-radius:50%;
-  background:conic-gradient(#f26770,#f0b553,#6fb97d,#48afb5,#648bd1,#ad78be,#f26770)}
+  background:conic-gradient(#f26770,#f0b553,#6fb97d,#48afb5,#648bd1,#ad78be,#f26770);height:48px;width:48px;}
 .color-ring span{display:block;width:100%;height:100%;border-radius:50%}
 .color-ring:focus-visible{outline:2px solid var(--md-sys-color-primary);outline-offset:2px}
 /* 编辑页的时段卡片内，字段之间保持 12dp 呼吸 */
@@ -927,3 +956,35 @@ body.dialog-open .fab,body.picker-open .fab{opacity:0;transform:scale(.85)}
   .import-source,.settings-list button,.panel-card,.preview-item,.course-card{animation:none!important}
   :root[data-theme] .nav-indicator{transition:none}
 }
+
+@keyframes mdPickerFade{from{background:rgba(0,0,0,0)}to{background:var(--md-scrim)}}
+@keyframes mdPickerEnter{from{opacity:.65;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+
+/* 设置页「数据与应用」全是即时动作（导出、检查更新、反馈），没有可保存的表单，隐藏底部按钮 */
+#page-root[data-settings-tab="data"] .page-actions{display:none}
+
+
+/* --------------------------- 24. 主题切换：一次性到位 / 整体交叉淡入 */
+:root.theme-transition *,
+:root.theme-transition *::before,
+:root.theme-transition *::after{transition:none!important}
+::view-transition-old(root){animation:themeVtOut 180ms var(--md-ease-standard) both}
+::view-transition-new(root){animation:themeVtIn 220ms var(--md-ease-standard) both}
+@keyframes themeVtOut{from{opacity:1}to{opacity:0}}
+@keyframes themeVtIn{from{opacity:0}to{opacity:1}}
+
+/* --------------------------- 25. 课程编辑里「星期」下拉不再被省略号截断 */
+:root[data-theme] .course-editor-sheet #course-form .field>.md-control-trigger{
+  padding:24px 12px 6px;
+}
+.course-editor-sheet #course-form .md-control-trigger svg{width:16px;height:16px}
+.course-editor-sheet .session .row>.field:first-child{flex:1.4}
+.course-editor-sheet .session .row>.field:nth-child(2),
+.course-editor-sheet .session .row>.field:nth-child(3){flex:1}
+/* 自选周次输入之类超长内容仍按省略号处理，但不吞掉“周一”这种两个字的短值 */
+.course-editor-sheet .session .md-control-value{min-width:2.4em}
+
+/* 外观设置：分段按钮 + 说明文字 */
+.appearance-card{padding-bottom:14px}
+.appearance-card .segmented{margin:2px 0 0}
+.appearance-hint{margin:10px 2px 0;font-size:12px;line-height:1.5;color:var(--md-sys-color-on-surface-variant)}

@@ -38,6 +38,22 @@
   const androidVersion=native&&typeof native.androidVersion==='function'?native.androidVersion():'';
   let page='home',settingsTab='table',dirtyTarget=null,dirtyInitial='',pendingLeave=null;
   const draftBaselines=new WeakMap();
+  document.addEventListener('change',e=>{
+    const input=e.target;
+    if(!input||input.name!=='appearance'||!input.value)return;
+    state.settings.theme=input.value;
+    applyTheme(true);applyBackground(M.activeTable(state));
+  },true);
+  let appearanceBackup=null;
+  const darkQuery=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+  if(darkQuery){
+    const onSchemeChange=()=>{
+      if(!state||state.settings.theme!=='auto')return;
+      applyTheme(true);applyBackground(M.activeTable(state));
+    };
+    if(darkQuery.addEventListener)darkQuery.addEventListener('change',onSchemeChange);
+    else if(darkQuery.addListener)darkQuery.addListener(onSchemeChange);
+  }
   let lastRenderedWeek=null;
   let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:false,exact:false,scheduled:0,nextAt:0,error:''};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
@@ -45,6 +61,7 @@
   let table=M.activeTable(state);week=Math.max(1,Math.min(table.totalWeeks,M.weekOf(table,M.todayDate())));
 
   function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2800);}
+  window.cgToast=toast;
   function releaseItems(notes){
     const clean=line=>line.replace(/^[-*•]\s*/, '').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1')
       .replace(/[`*_]/g,'').trim();
@@ -62,11 +79,35 @@
     return entries.length?entries.map(entry=>`<section class="changelog-entry"><div class="listrow"><div><strong>v${esc(entry.version)}</strong><small>${esc(entry.date)}</small></div></div><ul class="update-list">${entry.items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></section>`).join(''):
       '<p class="muted">更新说明暂不可用</p>';
   }
-  function applyTheme(){
-    const dark=state.settings.theme==='dark';
-    document.documentElement.dataset.theme=dark?'dark':'light';
-    const meta=$('meta[name="theme-color"]');if(meta)meta.content=dark?'#111416':'#f9f9fc';
-    const switcher=$('#theme-switch');if(switcher){switcher.innerHTML=themeIcon(dark);switcher.setAttribute('aria-label',dark?'切换到白天模式':'切换到夜间模式');switcher.title=dark?'白天模式':'夜间模式';}
+  function systemPrefersDark(){return !!(darkQuery&&darkQuery.matches);}
+  // 实际生效的明暗：auto 跟随系统，其余按用户选择
+  function isDark(){
+    const t=state.settings.theme;
+    return t==='dark'||(t==='auto'&&systemPrefersDark());
+  }
+  function applyTheme(animate){
+    const dark=isDark();
+    const root=document.documentElement;
+    const commit=()=>{
+      root.dataset.theme=dark?'dark':'light';
+      const meta=$('meta[name="theme-color"]');if(meta)meta.content=dark?'#111416':'#f9f9fc';
+      const switcher=$('#theme-switch');if(switcher){switcher.innerHTML=themeIcon(dark);switcher.setAttribute('aria-label',dark?'切换到白天模式':'切换到夜间模式');switcher.title=dark?'白天模式':'夜间模式';}
+    };
+    // 主题切换时所有颜色必须“同一帧”到位：逐个元素的 transition 长度不一，
+    // 中间态拼起来就是用户看到的闪屏。有 View Transitions 就整体交叉淡入，
+    // 没有就临时关掉过渡做一次性切换（干净，不会有花屏过渡）。
+    if(animate&&typeof document.startViewTransition==='function'){
+      root.classList.add('theme-transition');
+      const vt=document.startViewTransition(commit);
+      const done=()=>root.classList.remove('theme-transition');
+      if(vt&&vt.finished)vt.finished.then(done,done);else setTimeout(done,320);
+    }else if(animate){
+      root.classList.add('theme-transition');
+      commit();
+      requestAnimationFrame(()=>requestAnimationFrame(()=>root.classList.remove('theme-transition')));
+    }else{
+      commit();
+    }
     if(native?.setTheme)native.setTheme(dark);
   }
   function save(syncReminders=true){
@@ -89,27 +130,27 @@
     markersById=new Map(markers.map(x=>[x.id,x]));
     $('#app').innerHTML=`<main class="shell">
       <div class="top"><div class="brand"><img class="brandmark" src="icon-a.svg" alt="" aria-hidden="true"><span class="brandtitle">ClassGrid</span></div>
-        <button class="manage-btn" data-action="manage" aria-label="切换或新建课表" title="切换／新建课表">${panelIcon('timetable')}</button></div>
+        <button class="manage-btn" data-action="manage">切换／新建</button></div>
       <div class="home-content"><div class="toolbar"><strong class="table-name" title="${esc(table.name)}">${esc(table.name)}</strong>
         <div class="weeknav"><button class="iconbtn" data-action="prev" aria-label="上一周">‹</button>
           <button class="weekpill" data-action="week">第 ${week} 周</button>
           <button class="iconbtn" data-action="next" aria-label="下一周">›</button>
           <button class="todaybtn" data-action="today">本周</button></div></div>
-      <div class="weekday-row"><button id="theme-switch" class="theme-switch" data-action="theme" aria-label="切换主题">${themeIcon(state.settings.theme==='dark')}</button>${days.map((d,i)=>`<div class="day ${dates[i]===today?'today':''}"><b>周${d}</b><span>${dateLabel(dates[i])}</span></div>`).join('')}</div>
+      <div class="weekday-row"><button id="theme-switch" class="theme-switch" data-action="theme" aria-label="切换主题">${themeIcon(isDark())}</button>${days.map((d,i)=>`<div class="day ${dates[i]===today?'today':''}"><b>周${d}</b><span>${dateLabel(dates[i])}</span></div>`).join('')}</div>
       <div class="grid-scroll"><div class="timetable" id="timetable"><img class="timetable-background" id="table-background" alt="" hidden><div class="timetable-background-veil" id="table-background-veil" hidden></div>${table.periods.map((p,n)=>
         `<div class="period-label" style="height:72px;grid-row:${n+1};grid-column:1"><b>${n+1}</b><small>${esc(p.start)}</small><small class="period-end">${esc(p.end)}</small></div>`+
         days.map((_,i)=>`<div class="slot ${dates[i]===today?'todaycol':''}" style="height:72px;grid-row:${n+1};grid-column:${i+2}"></div>`).join('')).join('')}
         ${occurrences.length||markers.length?'':`<div class="empty-tip"><span class="empty-title">本周暂无课程</span><span class="empty-sub">点右下角「＋」添加一门课，或用底部「导入」从教务系统、Excel 表格导入</span></div>`}</div></div>
       </div><section id="page-root" class="main-page" hidden></section><button class="fab" data-action="add" aria-label="添加课程">${navIcon('add')}</button>
-      <nav class="bottom" aria-label="主导航"><button class="navbtn selected" data-action="home" aria-current="page">${navItem('home','课表')}</button>
-        <button class="navbtn action-import" data-action="import">${navItem('import','导入')}</button>
-        <button class="navbtn" data-action="settings">${navItem('settings','设置')}</button></nav>
+      <nav class="bottom" aria-label="主导航"><button class="navbtn${page==='home'?' selected':''}" data-action="home"${page==='home'?' aria-current="page"':''}>${navItem('home','课表')}</button>
+        <button class="navbtn action-import${page==='import'?' selected':''}" data-action="import"${page==='import'?' aria-current="page"':''}>${navItem('import','导入')}</button>
+        <button class="navbtn${page==='settings'?' selected':''}" data-action="settings"${page==='settings'?' aria-current="page"':''}>${navItem('settings','设置')}</button></nav>
       </main>`;
     positionCards(occurrences,markers,conflicts);
     let touch=null;const scroller=$('.grid-scroll');
     applyBackground(table);
-    applyTheme();
-    moveNavIndicator(false);
+    applyTheme(false);
+    moveNavIndicator(true);
     // 左右切周时给课表一个方向感（M3 fade-through 的方向变体）
     const grid=$('#timetable');
     if(grid&&lastRenderedWeek!==null&&lastRenderedWeek!==week)
@@ -126,7 +167,7 @@
     const active=!!t.background;
     scroll.classList.toggle('has-background',active);
     image.hidden=veil.hidden=!active;
-    if(active){if(image.src!==t.background)image.src=t.background;veil.style.backgroundColor=state.settings.theme==='dark'?`rgba(9,18,28,${Math.min(.65,fade/100+.18)})`:`rgba(255,255,255,${fade/100})`;}
+    if(active){if(image.src!==t.background)image.src=t.background;veil.style.backgroundColor=isDark()?`rgba(9,18,28,${Math.min(.65,fade/100+.18)})`:`rgba(255,255,255,${fade/100})`;}
     else image.removeAttribute('src');
   }
   function applyBackgroundPreview(t,fade=Number(t.backgroundFade??35)){
@@ -238,6 +279,7 @@
     leave(()=>{close();page=to;dirtyTarget=null;render();},true);
   }
   // 底部导航的选中指示器是一块独立滑块：切换目的地时从旧图标平移到新图标
+  let navIndicatorAt=null;
   function moveNavIndicator(animate){
     const nav=document.querySelector('.bottom');
     if(!nav)return;
@@ -252,11 +294,20 @@
     const wrap=active&&active.querySelector('.nav-icon-wrap');
     if(!wrap)return;
     const navBox=nav.getBoundingClientRect(),wrapBox=wrap.getBoundingClientRect();
-    if(!animate)indicator.style.transition='none';
+    const target=`translate(${wrapBox.left-navBox.left}px,${wrapBox.top-navBox.top}px)`;
+    // 导航条会随 render() 一起重建，新元素没有“上一位置”。
+    // 所以记住上一次的落点：先把新元素摆回旧位置，再过渡到新位置，动画才不会丢。
+    const from=animate&&navIndicatorAt&&navIndicatorAt!==target?navIndicatorAt:target;
+    indicator.style.transition='none';
     indicator.style.width=wrapBox.width+'px';
     indicator.style.height=wrapBox.height+'px';
-    indicator.style.transform=`translate(${wrapBox.left-navBox.left}px,${wrapBox.top-navBox.top}px)`;
-    if(!animate)requestAnimationFrame(()=>requestAnimationFrame(()=>{indicator.style.transition='';}));
+    indicator.style.transform=from;
+    navIndicatorAt=target;
+    if(from===target)return;
+    requestAnimationFrame(()=>{
+      indicator.style.transition='';
+      requestAnimationFrame(()=>{indicator.style.transform=target;});
+    });
   }
   let navResizeTimer=null;
   addEventListener('resize',()=>{clearTimeout(navResizeTimer);navResizeTimer=setTimeout(()=>moveNavIndicator(false),120);});
@@ -269,7 +320,6 @@
     $('#page-root').innerHTML=`<header class="page-heading"><span>ClassGrid</span><h1>${esc(title)}</h1></header><div class="sheet-body page-body">${body}</div>${actions?`<div class="page-actions">${actions}</div>`:''}`;
     $$('.bottom .navbtn').forEach(button=>{const active=button.dataset.action===page;button.classList.toggle('selected',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
     $('.manage-btn').hidden=true;
-    moveNavIndicator(true);
     if(page==='settings')watchDraft($('#page-root'));else dirtyTarget=null;
   }
   function modal(title,body,actions=''){
@@ -545,6 +595,7 @@
     }catch(e){$('#import-error').textContent=e.message;$('#import-summary').hidden=true;$('#import-course-preview').innerHTML='';}
   }
   function openSettings(){
+    if(appearanceBackup===null)appearanceBackup=state.settings.theme;
     if(native?.reminderStatus){try{reminderStatus=JSON.parse(native.reminderStatus());}catch(e){}}
     pagePanel('设置',`<div class="settings-page"><div class="settings-tabs" role="tablist" aria-label="设置分类">
       <button type="button" role="tab" aria-selected="true" class="selected" data-action="settings-tab" data-tab="table">课表</button>
@@ -554,7 +605,13 @@
       <div class="panel-card">${field('课表名称',`<input id="setting-name" value="${esc(table.name)}" maxlength="50">`)}
       <div class="row">${field('第一周周一',`<input id="setting-date" type="date" value="${table.startDate}">`)}
       ${field('总周数',`<input id="setting-weeks" type="number" min="1" max="30" value="${table.totalWeeks}">`)}</div>
-      <button type="button" class="settings-link" data-action="periods">${panelIcon('clock')}<span>节次时间</span><span class="source-arrow">›</span></button></div></section>
+      <button type="button" class="settings-link" data-action="periods">${panelIcon('clock')}<span>节次时间</span><span class="source-arrow">›</span></button></div>
+      <h3 class="panel-heading">${panelIcon('app')}<span>外观</span></h3>
+      <div class="panel-card appearance-card"><div class="segmented" role="radiogroup" aria-label="外观模式">
+      <label><input type="radio" name="appearance" value="auto" ${state.settings.theme==='auto'?'checked':''}>跟随系统</label>
+      <label><input type="radio" name="appearance" value="light" ${state.settings.theme==='light'?'checked':''}>浅色</label>
+      <label><input type="radio" name="appearance" value="dark" ${state.settings.theme==='dark'?'checked':''}>深色</label></div>
+      <p class="muted appearance-hint">跟随系统时，手机切到深色模式会自动跟着变；课表左上角的太阳／月亮按钮可随时手动切换。</p></div></section>
       <section class="settings-panel" data-tab="reminder" hidden><h3 class="panel-heading">${panelIcon('alarm')}<span>课前提醒</span></h3>
       <div class="panel-card"><label class="reminder-switch"><span>开启提醒</span><input id="reminder-enabled" type="checkbox" ${state.settings.remindersEnabled?'checked':''}></label>
       ${field('提前分钟',`<input id="reminder-minutes" type="number" min="0" max="240" value="${state.settings.reminderMinutes??15}">`)}
@@ -575,6 +632,7 @@
   }
   function selectSettingsTab(selected){
     settingsTab=selected;
+    const pageRoot=$('#page-root');if(pageRoot)pageRoot.dataset.settingsTab=selected;
     $$('.settings-tabs [data-tab]').forEach(tab=>{const active=tab.dataset.tab===selected;tab.classList.toggle('selected',active);tab.setAttribute('aria-selected',String(active));});
     $$('.settings-panel').forEach(panel=>panel.hidden=panel.dataset.tab!==selected);
     $('#page-root .sheet-body').scrollTop=0;
@@ -641,7 +699,7 @@
     if(action==='keep-editing'){pendingLeave=null;$('#discard-confirm')?.remove();$('#modal-root .sheet')?.style.removeProperty('--dismiss-start');return;}
     if(action==='discard-changes'){const after=pendingLeave;pendingLeave=null;$('#discard-confirm')?.remove();dirtyTarget=null;if(after)after();return;}
     if(action==='close'||action==='close-overlay'){requestDismiss();return;}
-    if(action==='theme'){const old=state.settings.theme;state.settings.theme=old==='dark'?'light':'dark';applyTheme();applyBackground(table);if(!save(false)){state.settings.theme=old;applyTheme();applyBackground(table);}return;}
+    if(action==='theme'){const old=state.settings.theme;state.settings.theme=isDark()?'light':'dark';applyTheme(true);applyBackground(table);if(!save(false)){state.settings.theme=old;applyTheme(false);applyBackground(table);}return;}
     if(action==='prev'||action==='next'){week+=action==='prev'?-1:1;render();return;}
     if(action==='home'){navigation('home');return;}
     if(action==='today'){week=currentWeek();render();return;}
@@ -743,14 +801,14 @@
     }
     if(action==='settings'){navigation('settings');return;}
     if(action==='settings-tab'){selectSettingsTab(button.dataset.tab);return;}
-    if(action==='cancel-settings'){leave(()=>{dirtyTarget=null;openSettings();});return;}
+    if(action==='cancel-settings'){if(appearanceBackup!==null){state.settings.theme=appearanceBackup;appearanceBackup=null;applyTheme(false);applyBackground(table);}leave(()=>{dirtyTarget=null;openSettings();});return;}
     if(action==='save-settings'){
       const name=$('#setting-name').value.trim(),date=$('#setting-date').value,weeks=Number($('#setting-weeks').value),mins=Number($('#reminder-minutes').value);
       if(!name||!/^\d{4}-\d\d-\d\d$/.test(date)||M.monday(date)!==date||weeks<1||weeks>30||mins<0||mins>240){$('#settings-error').textContent='请检查名称、第一周周一、总周数和提醒时间';return;}
       if(table.courses.some(c=>c.sessions.some(s=>s.weeks.some(w=>w>weeks)))){$('#settings-error').textContent='现有课程超出新的总周数';return;}
       const turningOn=!state.settings.remindersEnabled&&$('#reminder-enabled').checked;
       table.name=name;table.startDate=date;table.totalWeeks=weeks;state.settings.remindersEnabled=$('#reminder-enabled').checked;
-      state.settings.reminderMinutes=mins;week=Math.min(week,weeks);save();close();render();
+      state.settings.reminderMinutes=mins;appearanceBackup=null;week=Math.min(week,weeks);save();close();render();
       if(turningOn&&native){
         if(!reminderStatus.notifications)native.requestReminderPermission();
         else if(!reminderStatus.exact)native.openExactAlarmSettings();
@@ -959,6 +1017,6 @@
       positionCards(events,M.changeMarkers(table,week),M.conflicts(events));
     },80);
   });
-  applyTheme();render();
+  applyTheme(false);render();
   if(native)native.syncReminders(JSON.stringify(M.reminderPayload(state)));
 })();

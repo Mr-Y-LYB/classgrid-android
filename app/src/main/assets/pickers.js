@@ -48,12 +48,14 @@
     }
     root.innerHTML=`<section class="md-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="md-picker-title"><h2 id="md-picker-title">${esc(title)}</h2><div class="md-picker-body">${body}</div><div class="md-picker-actions">${actions}</div></section>`;
   }
+  function diag(msg){try{console.warn('[picker]',msg);}catch(e){}}
   function open(input,trigger){
-    if(active||input.disabled)return;
+    if(active||input.disabled){diag('被拦截 active='+!!active+' disabled='+!!input.disabled);return;}
     if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
     const root=document.createElement('div');root.className='md-picker-overlay';root.id='control-picker';document.body.appendChild(root);
     const chosen=dateOf(input.value)||new Date();active={input,trigger,root,value:input.value||dateString(chosen),year:chosen.getFullYear(),month:chosen.getMonth(),monthView:false};
-    document.body.classList.add('picker-open');trigger.setAttribute('aria-expanded','true');render();
+    document.body.classList.add('picker-open');trigger.setAttribute('aria-expanded','true');
+    try{render();}catch(err){diag('render 失败 '+(err&&err.message||err));}
     root.addEventListener('click',e=>{
       if(!active||active.root!==root)return;
       if(e.target===root){close();return;}
@@ -88,7 +90,7 @@
       const trigger=document.createElement('button');trigger.type='button';trigger.className='md-control-trigger';
       trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-expanded','false');
       trigger.id='md-control-'+(++sequence);trigger.innerHTML=`<span class="md-control-value"></span>${icon(input.tagName==='SELECT'?'<path d="m7 10 5 5 5-5"/>':input.type==='date'?'<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/>':'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>')}`;
-      input.after(trigger);trigger.addEventListener('click',()=>open(input,trigger));
+      input.after(trigger);
       const label=input.closest('.field')?.querySelector('label');if(label)label.htmlFor=trigger.id;
       input.addEventListener('change',()=>refresh(input));refresh(input);
     }
@@ -98,6 +100,21 @@
     if(records.some(record=>Array.from(record.addedNodes).some(node=>node.nodeType===1&&!node.closest?.('#control-picker')&&!node.classList?.contains('md-control-trigger')))&&!scheduled){scheduled=true;queueMicrotask(enhance);}
   });
   observer.observe(document.body,{childList:true,subtree:true});enhance();
+  // 指针与键盘都走委托：trigger 由 MutationObserver 动态插入，逐元素绑定在部分 WebView 上会丢
+  function onTriggerActivate(e){
+    const trigger=e.target&&e.target.closest&&e.target.closest('.md-control-trigger');
+    if(!trigger)return;
+    const input=trigger.previousElementSibling;
+    if(!input||!input.dataset||input.dataset.materialControl!=='true'){diag('trigger 找不到对应 input');return;}
+    e.preventDefault();
+    open(input,trigger);
+  }
+  document.addEventListener('click',onTriggerActivate,true);
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Enter'&&e.key!==' ')return;
+    const t=e.target;
+    if(t&&t.classList&&t.classList.contains('md-control-trigger'))onTriggerActivate(e);
+  },true);
   const back=window.onBackRequested;window.onBackRequested=()=>{if(active){close();return true;}return back?back():false;};
   document.addEventListener('keydown',e=>{
     if(!active)return;

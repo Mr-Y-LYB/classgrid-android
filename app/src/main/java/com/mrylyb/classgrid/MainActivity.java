@@ -67,25 +67,30 @@ public class MainActivity extends Activity {
      * 在日夜切换时表现为“闪一下”。
      */
     private void applySystemBars(boolean dark) {
-        getWindow().setStatusBarColor(dark ? Color.rgb(17, 20, 22) : Color.rgb(249, 249, 252));
-        getWindow().setNavigationBarColor(dark ? Color.rgb(25, 28, 30) : Color.rgb(243, 243, 246));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            android.view.WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                int mask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                    | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
-                controller.setSystemBarsAppearance(dark ? 0 : mask, mask);
+        // 这个方法会被 JS 通过 Bridge 调用。任何异常都会穿过 JSBridge 抛回网页，
+        // 打断 applyTheme() 之后的 render()，表现为启动白屏。所以整体兜住。
+        try {
+            getWindow().setStatusBarColor(dark ? Color.rgb(17, 20, 22) : Color.rgb(249, 249, 252));
+            getWindow().setNavigationBarColor(dark ? Color.rgb(25, 28, 30) : Color.rgb(243, 243, 246));
+        } catch (Throwable ignored) {}
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.view.WindowInsetsController controller = getWindow().getInsetsController();
+                if (controller != null) {
+                    int mask = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                    controller.setSystemBarsAppearance(dark ? 0 : mask, mask);
+                }
+            } else {
+                getWindow().getDecorView().setSystemUiVisibility(dark ? 0 :
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
             }
-        } else {
-            getWindow().getDecorView().setSystemUiVisibility(dark ? 0 :
-                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
-                android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-        }
+        } catch (Throwable ignored) {}
     }
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        applySystemBars(false);
         updater = new UpdateManager(this, networkWorker, this::callback);
         connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         web = new WebView(this);
@@ -110,6 +115,8 @@ public class MainActivity extends Activity {
         });
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
+        // 窗口已 attach，此时设置系统栏最安全
+        applySystemBars(false);
     }
 
     private File stateFile() { return new File(getFilesDir(), "classgrid.json"); }

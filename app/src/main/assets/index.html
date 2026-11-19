@@ -12,6 +12,17 @@
   <div id="app"></div>
   <div id="modal-root"></div>
   <div id="toast" role="status" aria-live="polite"></div>
+  <script>
+  /* 启动兜底：任何脚本异常都直接显示出来，而不是留一个白屏。
+     正常运行时这段不会产生任何可见内容。 */
+  window.addEventListener('error', function (e) {
+    var app = document.getElementById('app');
+    if (!app || app.textContent.trim()) return;
+    app.innerHTML = '<pre style="margin:0;padding:18px;font:12px/1.6 monospace;white-space:pre-wrap;color:#b3261e;background:#fff">'
+      + '启动失败：' + (e.message || '未知错误') + '\n' + (e.filename || '') + ':' + (e.lineno || '')
+      + '</pre>';
+  });
+  </script>
   <script src="model.js"></script>
   <script src="import.js"></script>
   <script src="changelog.js"></script>

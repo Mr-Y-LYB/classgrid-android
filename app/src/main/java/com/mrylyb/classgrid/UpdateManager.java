@@ -139,9 +139,16 @@ final class UpdateManager {
                 temp = new File(dir, "classgrid-download.apk");
                 File apk = new File(dir, "classgrid-update.apk");
                 String assetName = "ClassGrid-v" + version + ".apk";
+                // 源顺序按国内可达性排：jsDelivr 家族优先（@main 与固定 tag 各一份），
+                // 然后 raw（常被墙）、最后才是 GitHub release 直链（慢，但最权威）。
                 ApkDownloader.download(Arrays.asList(
-                    RAW_APK + assetName, CDN_APK + assetName, url), digest, temp,
-                    true, 12000, 20000, new ApkDownloader.Progress() {
+                    CDN_APK + assetName,
+                    "https://cdn.jsdelivr.net/gh/" + REPO + "@v" + version + "/downloads/" + assetName,
+                    "https://gcore.jsdelivr.net/gh/" + REPO + "@main/downloads/" + assetName,
+                    "https://testingcf.jsdelivr.net/gh/" + REPO + "@main/downloads/" + assetName,
+                    RAW_APK + assetName,
+                    url), digest, temp,
+                    true, 15000, 60000, new ApkDownloader.Progress() {
                         @Override public void status(String message) { progress(message); }
                         @Override public void percent(int value) {
                             callback.accept("onUpdateProgress", "{\"percent\":" + value + "}");
@@ -270,8 +277,8 @@ final class UpdateManager {
 
     private String readJson(String url) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-        conn.setConnectTimeout(7000);
-        conn.setReadTimeout(7000);
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(12000);
         conn.setRequestProperty("User-Agent", "ClassGrid/" + currentVersion());
         conn.setRequestProperty("Accept", url.startsWith(API) ? "application/vnd.github+json" : "application/json");
         conn.setRequestProperty("Cache-Control", "no-cache");

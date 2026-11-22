@@ -1,12 +1,12 @@
 {
-  "tag_name": "v2.3.0",
-  "body": "# ClassGrid v2.3.0\n\n- 修复教务导入同一节课有多个教室时只保留一个的问题：现在每个教室都会保留，课程方块显示第一个教室并用「+N」标出其余数量，课程详情逐行列出全部教室，提醒通知也会带上全部教室。\n- 教务单元格里同一门课分两段排期（不同周次不同教室）时，两个教室会分别对应到各自的周次，不再被前一段覆盖。\n- 课程方块文字排布统一：名称固定从顶部开始、教室固定在底部同一条基线上，名称与教室之间的间距、内边距、行距在所有方块上一致；只有在名称放不下时才整体缩小字号，教室不再被挤出方块或被裁掉。\n- 长课程名放不下时优先压缩教室行数、再截断名称（详情与编辑里仍是全名），不再出现文字贴边、压到单双周徽标上的情况。\n- 课前提醒重做后台可靠性：新增前台「提醒守护」服务每分钟自查并直接投递到点提醒；系统闹钟改用最高优先级的 setAlarmClock，并新增 USE_EXACT_ALARM 权限；再加 15 分钟一次的兜底任务与划掉最近任务后自动复活，避免清后台后不再提醒。\n- 提醒设置页新增自检清单（通知权限 / 精确提醒 / 后台守护 / 后台运行），并提供「允许后台运行」「自启动」两个直达入口，一眼能看出是哪一项导致不提醒，小米、华为、OPPO、vivo 等机型可直接跳到对应设置页。\n\n手动下载（更新提示下载源失败时）：https://gcore.jsdelivr.net/gh/Mr-Y-LYB/classgrid-android@main/downloads/ClassGrid-v2.3.0.apk\n\nAPK SHA-256：2ab8cf76791fbc3ca4320bf536797e5ea5c21e690f16a8ae54a913c43c3e9f61\n",
+  "tag_name": "v2.3.1",
+  "body": "# ClassGrid v2.3.1\n\n- 修复更新检查被 CDN 旧缓存挡住的问题：各镜像对 @main 的缓存节奏不同（实测 gcore、testingcf 还停在上一个版本时，cdn.jsdelivr.net 已是新版），现在会同时询问所有源并取版本号最大的那份，不再「明明发了新版却提示已是最新」。\n- 更新信息请求超时收紧到连接 6 秒 / 读取 8 秒，拿到更高版本就提前结束，不再为慢源干等。\n\n手动下载（更新提示下载源失败时）：https://gcore.jsdelivr.net/gh/Mr-Y-LYB/classgrid-android@main/downloads/ClassGrid-v2.3.1.apk\n\nAPK SHA-256：5563353d96a608f9c2afac0ba3c9edcb112a1e9a94d7d1870a01ec6ca29da4e2\n",
   "assets": [
     {
-      "name": "ClassGrid-v2.3.0.apk",
-      "size": 1087227,
-      "digest": "sha256:2ab8cf76791fbc3ca4320bf536797e5ea5c21e690f16a8ae54a913c43c3e9f61",
-      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v2.3.0/ClassGrid-v2.3.0.apk"
+      "name": "ClassGrid-v2.3.1.apk",
+      "size": 1087627,
+      "digest": "sha256:5563353d96a608f9c2afac0ba3c9edcb112a1e9a94d7d1870a01ec6ca29da4e2",
+      "browser_download_url": "https://github.com/Mr-Y-LYB/classgrid-android/releases/download/v2.3.1/ClassGrid-v2.3.1.apk"
     }
   ]
 }

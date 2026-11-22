@@ -254,41 +254,61 @@ final class UpdateManager {
         callback.accept("onUpdateDownload", obj.toString());
     }
 
+    /**
+     * 各镜像对 @main 的缓存节奏不一样（实测同一个版本，cdn.jsdelivr.net 已是新版，
+     * gcore / testingcf 还停在上一版）。所以不能「取第一个成功的清单」——那样会被
+     * 旧缓存挡住，表现为「明明发了新版却提示已是最新」。这里把所有源都问一遍，取版本号最大的。
+     */
     private JSONObject loadRelease() throws Exception {
         String firstError = "";
-        // 清单也走同一套镜像顺序：api.github.com 在国内经常连不上，放到最后。
         String stamp = "?t=" + (System.currentTimeMillis() / 3600000);
         String[] feeds = {
+            CDN_FEED + stamp,
             "https://gcore.jsdelivr.net/gh/" + REPO + "@main/update.json" + stamp,
             "https://testingcf.jsdelivr.net/gh/" + REPO + "@main/update.json" + stamp,
-            CDN_FEED + stamp,
             RAW_FEED,
             API
         };
+        JSONObject best = null;
+        int bestVersion = -1;
+        int current = versionCode(currentVersion());
         for (String feed : feeds) {
-            for (int attempt = 0; attempt < (feed.equals(API) ? 2 : 1); attempt++) {
+            for (int attempt = 0; attempt < (feed.startsWith(API) ? 2 : 1); attempt++) {
                 try {
                     JSONObject release = new JSONObject(readJson(feed));
                     if (!release.has("tag_name") || release.optJSONArray("assets") == null)
                         throw new IllegalStateException("版本信息格式无效");
-                    return release;
+                    int version = versionCode(release.optString("tag_name", "").replaceFirst("^[vV]", ""));
+                    if (version > bestVersion) { bestVersion = version; best = release; }
+                    break;
                 } catch (Exception e) {
                     if (firstError.isEmpty()) firstError = e.getMessage() == null ? "连接失败" : e.getMessage();
-                    if (attempt == 0 && feed.equals(API))
+                    if (attempt == 0 && feed.startsWith(API))
                         try { Thread.sleep(500); } catch (InterruptedException interrupted) {
                             Thread.currentThread().interrupt();
                             throw interrupted;
                         }
                 }
             }
+            // 已经拿到比本机新的版本，够用了，不必再等剩下更慢的源。
+            if (bestVersion > current) break;
         }
+        if (best != null) return best;
         throw new IllegalStateException("更新服务暂不可用（" + firstError + "）");
+    }
+
+    /** 2.3.1 → 20301，用于比较清单版本高低。 */
+    static int versionCode(String version) {
+        try {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]) * 10000 + Integer.parseInt(parts[1]) * 100 + Integer.parseInt(parts[2]);
+        } catch (Exception ignored) { return -1; }
     }
 
     private String readJson(String url) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-        conn.setConnectTimeout(10000);
-        conn.setReadTimeout(12000);
+        conn.setConnectTimeout(6000);
+        conn.setReadTimeout(8000);
         conn.setRequestProperty("User-Agent", "ClassGrid/" + currentVersion());
         conn.setRequestProperty("Accept", url.startsWith(API) ? "application/vnd.github+json" : "application/json");
         conn.setRequestProperty("Cache-Control", "no-cache");

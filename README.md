@@ -25,10 +25,10 @@ CSV/XLSX 表头：`课程,教师,教室,星期,开始节,结束节,周次`。周
 国内直连 GitHub 时快时慢，应用内更新已按实测速度排序走 CDN 镜像（gcore → testingcf → jsDelivr → raw → GitHub）。仍失败时用浏览器打开下面这条直链，下载后手动安装，装好即是最新版：
 
 ```text
-https://gcore.jsdelivr.net/gh/Mr-Y-LYB/classgrid-android@main/downloads/ClassGrid-v2.3.0.apk
+https://gcore.jsdelivr.net/gh/Mr-Y-LYB/classgrid-android@main/downloads/ClassGrid-v2.3.1.apk
 ```
 
-把文件名换成对应版本即可（`downloads/` 目录里放着每个版本的 APK）。v1.x / v2.1.x 的老版本只有 raw、jsDelivr、GitHub 三个老下载路径，升级到 v2.3.0 建议就用这条链接手动装一次，之后的更新会走新版的多镜像顺序。
+把文件名换成对应版本即可（`downloads/` 目录里放着每个版本的 APK）。v1.x / v2.1.x 的老版本只有 raw、jsDelivr、GitHub 三个老下载路径，升级到最新版建议就用这条链接手动装一次，之后的更新会走新版的多镜像顺序。
 
 ## 构建
 

@@ -31,6 +31,8 @@ final class UpdateManager {
     private static final String ASSET_PREFIX = "https://github.com/" + REPO + "/releases/download/";
     private static final String RAW_APK = "https://raw.githubusercontent.com/" + REPO + "/main/downloads/";
     private static final String CDN_APK = "https://cdn.jsdelivr.net/gh/" + REPO + "@main/downloads/";
+    private static final String GCORE_APK = "https://gcore.jsdelivr.net/gh/" + REPO + "@main/downloads/";
+    private static final String TESTINGCF_APK = "https://testingcf.jsdelivr.net/gh/" + REPO + "@main/downloads/";
     private final MainActivity activity;
     private final ExecutorService worker;
     private final BiConsumer<String, String> callback;
@@ -139,16 +141,16 @@ final class UpdateManager {
                 temp = new File(dir, "classgrid-download.apk");
                 File apk = new File(dir, "classgrid-update.apk");
                 String assetName = "ClassGrid-v" + version + ".apk";
-                // 源顺序按国内可达性排：jsDelivr 家族优先（@main 与固定 tag 各一份），
-                // 然后 raw（常被墙）、最后才是 GitHub release 直链（慢，但最权威）。
+                // 源顺序按国内实测速度排：gcore → testingcf → jsDelivr → raw（常被墙）→ GitHub 直链（慢）。
+                // 单源超时放宽到读 30 秒：实测 gcore 3.6 秒完成，jsDelivr 主站偶尔 60 秒以上仍会超时。
                 ApkDownloader.download(Arrays.asList(
+                    GCORE_APK + assetName,
+                    TESTINGCF_APK + assetName,
                     CDN_APK + assetName,
                     "https://cdn.jsdelivr.net/gh/" + REPO + "@v" + version + "/downloads/" + assetName,
-                    "https://gcore.jsdelivr.net/gh/" + REPO + "@main/downloads/" + assetName,
-                    "https://testingcf.jsdelivr.net/gh/" + REPO + "@main/downloads/" + assetName,
                     RAW_APK + assetName,
                     url), digest, temp,
-                    true, 15000, 60000, new ApkDownloader.Progress() {
+                    true, 10000, 30000, new ApkDownloader.Progress() {
                         @Override public void status(String message) { progress(message); }
                         @Override public void percent(int value) {
                             callback.accept("onUpdateProgress", "{\"percent\":" + value + "}");
@@ -254,7 +256,15 @@ final class UpdateManager {
 
     private JSONObject loadRelease() throws Exception {
         String firstError = "";
-        String[] feeds = {API, RAW_FEED, CDN_FEED + "?t=" + (System.currentTimeMillis() / 3600000)};
+        // 清单也走同一套镜像顺序：api.github.com 在国内经常连不上，放到最后。
+        String stamp = "?t=" + (System.currentTimeMillis() / 3600000);
+        String[] feeds = {
+            "https://gcore.jsdelivr.net/gh/" + REPO + "@main/update.json" + stamp,
+            "https://testingcf.jsdelivr.net/gh/" + REPO + "@main/update.json" + stamp,
+            CDN_FEED + stamp,
+            RAW_FEED,
+            API
+        };
         for (String feed : feeds) {
             for (int attempt = 0; attempt < (feed.equals(API) ? 2 : 1); attempt++) {
                 try {

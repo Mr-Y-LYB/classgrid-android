@@ -109,12 +109,35 @@ const sessions=parsed.courses.flatMap(c=>c.sessions.map(s=>({name:c.name,...s}))
 assert.deepEqual(sessions.find(s=>s.name==='电力系统分析基础').weeks,[1,3,5,7,9,11]);
 assert.equal(sessions.find(s=>s.name==='电力电子技术').start,2);
 assert.equal(sessions.find(s=>s.name==='电力电子技术').day,2);
+
+// 同一节课多个教室：每个教室都必须保留，并落在同一时段与同一门课下
+const oneLessonRooms=I.parseCell('电力电子技术\n必修\n周二第1,2节{第1-16周}\n教师甲\n应星楼202\n瑞士楼124',2,1,30);
+assert.deepEqual(oneLessonRooms[0].rooms,['应星楼202','瑞士楼124']);
+const inlineRooms=I.parseCell('现代控制理论\n学选\n周四第3,4节{第1-14周}\n教师戊\n通明楼132 / 应星楼(原6#教学楼)106',4,3,30);
+assert.deepEqual(inlineRooms[0].rooms,['通明楼132','应星楼(原6#教学楼)106']);
+const blockRooms=I.parseCell('电力电子技术\n必修\n周二第1,2节{第1-8周}\n教师甲\n应星楼202\n周二第1,2节{第9-16周}\n教师甲\n瑞士楼124',2,1,30);
+assert.deepEqual(blockRooms.map(x=>x.rooms[0]),['应星楼202','瑞士楼124']);
+assert.deepEqual(blockRooms.map(x=>x.weeks.length),[8,8]);
+const portalRooms=I.parsePortal({tables:[{rows:[
+  [cell('时间'),cell('星 期 一'),cell('星期二'),cell('星期三'),cell('星期四'),cell('星期五'),cell('星期六'),cell('星期日')],
+  [cell('第1节'),cell('电力电子技术\n必修\n周一第1,2节{第1-16周}\n教师甲\n应星楼202\n瑞士楼124'),cell(''),cell(''),cell(''),cell(''),cell(''),cell('')]
+]}]},16);
+const roomSession=portalRooms.courses[0].sessions[0];
+assert.deepEqual(roomSession.rooms,['应星楼202','瑞士楼124']);
+assert.equal(roomSession.room,'应星楼202 / 瑞士楼124');
+const stateRooms=M.validateState({schema:1,activeId:'t',tables:[{...M.defaultTable(),courses:portalRooms.courses}],settings:{}});
+assert.deepEqual(stateRooms.tables[0].courses[0].sessions[0].rooms,['应星楼202','瑞士楼124']);
+assert.equal(M.roomText('',['应星楼202','瑞士楼124']),'应星楼202 / 瑞士楼124');
+const occRooms=M.occurrences({...M.defaultTable(),startDate:M.monday(M.todayDate()),totalWeeks:20,courses:portalRooms.courses},1);
+assert.deepEqual(occRooms[0].rooms,['应星楼202','瑞士楼124']);
+assert.equal(occRooms[0].room,'应星楼202 / 瑞士楼124');
+console.log('Multiple classrooms per lesson tests passed');
 console.log('ClassGrid core tests passed');
 
 const current=I.parseCell('电力系统分析基础\n必修\n周一第3,4节{第1-11周}\n教师\n应星楼403',1,3,30);
-assert.deepEqual(current,[{name:'电力系统分析基础',teacher:'教师',room:'应星楼403',day:1,start:3,end:4,weeks:[1,2,3,4,5,6,7,8,9,10,11]}]);
+assert.deepEqual(current,[{name:'电力系统分析基础',teacher:'教师',rooms:['应星楼403'],day:1,start:3,end:4,weeks:[1,2,3,4,5,6,7,8,9,10,11]}]);
 const two=I.parseCell('高等数学\n必修\n周二第3,4节{第2-12周(双)}\n甲\nA101\n大学英语\n选修\n周二第3,4节{第1-11周(单)}\n乙\nB202',2,3,30);
-assert.equal(two.length,2);assert.equal(two[1].name,'大学英语');assert.equal(two[0].room,'A101');
+assert.equal(two.length,2);assert.equal(two[1].name,'大学英语');assert.equal(two[0].rooms[0],'A101');
 assert.deepEqual(two[0].weeks,[2,4,6,8,10,12]);assert.deepEqual(two[1].weeks,[1,3,5,7,9,11]);
 const wrapped=I.parseCell('电机拖动基础\n必修\n周五第7,8节{第1-\n12周(单)}\n教师\n应星楼106',5,7,30);
 assert.equal(wrapped[0].end,8);assert.deepEqual(wrapped[0].weeks,[1,3,5,7,9,11]);

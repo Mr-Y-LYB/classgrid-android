@@ -31,8 +31,13 @@
     const groups=new Map();
     for(const r of records){
       const key=[r.name,r.teacher].join('\u001f');
-      if(!groups.has(key))groups.set(key,{id:M.uid(),name:r.name,teacher:r.teacher,room:r.room,sessions:[]});
-      groups.get(key).sessions.push({id:M.uid(),day:r.day,start:r.start,end:r.end,weeks:r.weeks,room:r.room});
+      const rooms=(r.rooms&&r.rooms.length?r.rooms:[r.room]).map(x=>clean(x)).filter(Boolean);
+      if(!groups.has(key))groups.set(key,{id:M.uid(),name:r.name,teacher:r.teacher,room:roomText(rooms),sessions:[]});
+      const course=groups.get(key);
+      if(!course.room)course.room=roomText(rooms);
+      // Every room of one lesson is kept on the same arrangement, never replaced by the last one.
+      course.sessions.push({id:M.uid(),day:r.day,start:r.start,end:r.end,weeks:r.weeks,
+        room:roomText(rooms),rooms:[...new Set(rooms)].slice(0,8)});
     }
     return M.assignCourseColors([...groups.values()]);
   }
@@ -51,7 +56,9 @@
           start=Number(get('开始节')),end=Number(get('结束节'));
         if(!name||name.length>100||day<1||day>7||!Number.isInteger(start)||!Number.isInteger(end)||
            start<1||end<start||end>20)throw Error('课程、星期或节次无效');
-        records.push({name,teacher:get('教师'),room:get('教室'),day,start,end,
+        const roomField=get('教室');
+        const rooms=roomField?roomField.split(/[、,，;；\/|｜＋+]/).map(clean).filter(Boolean):[];
+        records.push({name,teacher:get('教师'),rooms,day,start,end,
           weeks:M.parseWeeks(get('周次'),totalWeeks)});
       }catch(e){issues.push(`第 ${index+2} 行：${e.message}`);}
     });
@@ -81,28 +88,86 @@
     const s=normalized(text).replace(/\d{1,2}[月/.-]\d{1,2}日?$/,'');
     return dayNumber(s);
   }
+  const ROOM_HINT=/楼|教学楼|教室|实验楼|实验中心|馆|场|中心|基地|校区|栋|幢|室|号楼|号院|#/;
+  function roomLike(value){
+    const s=clean(value);if(!s)return false;
+    if(ROOM_HINT.test(s))return true;
+    // Plain room codes such as A101, B-305, 1203.
+    return /^[A-Za-z]{0,3}[-－]?\d{1,4}[A-Za-z]?$/.test(s);
+  }
+  function unbalanced(value){return (value.match(/[（(]/g)||[]).length>(value.match(/[）)]/g)||[]).length;}
+  // Split the room lines of one course block into every classroom they mention.
+  // A single lesson may run in two or more rooms; none of them may be dropped.
+  function splitRooms(lines,metadata){
+    const out=[];
+    for(const raw of lines){
+      const text=clean(raw);
+      if(!text||metadata.test(text)||/^(?:星期|礼拜|周)\s*[一二三四五六日天]/.test(text))continue;
+      for(const piece of text.split(/[、,，;；\/|｜＋+]/)){
+        const token=clean(piece);if(!token)continue;
+        const last=out.length?out[out.length-1]:'';
+        // Keep wrapped fragments such as “(原6#教学楼)” or “106” attached to their room.
+        if(last&&(unbalanced(last)||/^[\d（(]/.test(token)||/^[（(]/.test(token)||
+            /(?:楼|室|号|层|栋|幢|楼|馆|场|院)$/.test(last)))out[out.length-1]=last+token;
+        else out.push(token);
+      }
+    }
+    return out.filter(x=>x&&!/^(无|无课|—|-)$/.test(x)).slice(0,8);
+  }
+  // Legacy “2节/单周(1-12)” cells without a 周X第N节 header.
+  function parseLegacyCell(lines,day,start,maxWeeks){
+    const results=[];
+    const pattern=/(\d{1,2})\s*节\s*\/\s*(单周|双周|全部周数|每周|周)\s*\(\s*([\d\s,，、\-~～—–至到]+)\s*\)/;
+    const reversed=/(\d{1,2})\s*节\s*\/\s*([\d\s,，、\-~～—–至到]+)\s*周\s*(?:\((单|双)(?:周)?\))?/;
+    for(let i=0;i<lines.length;i++){
+      const hit=lines[i].match(pattern),reverse=hit?null:lines[i].match(reversed);if(!hit&&!reverse)continue;
+      let previous=i-1;
+      while(previous>=0&&/^(必修|选修|专选|公选|学选|无方向|实践|考查|考试)$/.test(lines[previous]))previous--;
+      const name=clean(lines[previous]||'');if(!name)continue;
+      const count=Number((hit||reverse)[1]),type=hit?hit[2]:reverse[3]||'',range=hit?hit[3]:reverse[2];
+      const weeks=M.parseWeeks(range.replace(/[，、]/g,',').replace(/\s/g,'')+(type.includes('单')?'单':type.includes('双')?'双':''),maxWeeks);
+      const end=start+count-1;
+      if(start<1||count<1||end>20)throw Error('课程节次超出范围');
+      results.push({name,teacher:clean(lines[i+1]||''),rooms:[clean(lines[i+2]||'')].filter(Boolean),day,start,end,weeks});
+    }
+    return results;
+  }
   function parseCell(text,day,start,maxWeeks){
     const lines=clean(text).split(/\n+/).map(clean).filter(Boolean),results=[];
     const metadata=/^(必修|选修|专选|公选|学选|无方向|实践|考查|考试)$/;
     // New SYUCT page: 周一第3,4节{第1-11周}, including wrapped DOM text.
     const explicit=/(?:星期|礼拜|周)\s*([一二三四五六日天])\s*第?\s*([\d\s,、\-~～—–至到]+)\s*节\s*\{\s*([^{}]+)\s*\}/g;
-    let consumed=-1;
+    const header=/^(?:星期|礼拜|周)\s*[一二三四五六日天]\s*第?\s*\d/;
+    const blocks=[];
     for(let i=0;i<lines.length;i++){
-      const line=lines[i];if(!/^(?:星期|礼拜|周)\s*[一二三四五六日天]\s*第?\s*\d/.test(line))continue;
-      let endLine=i,joined=line;
+      if(!header.test(lines[i]))continue;
+      let endLine=i,joined=lines[i];
       while(!joined.includes('}')&&endLine+1<lines.length&&endLine-i<5)joined+=lines[++endLine];
-      const matches=[...joined.matchAll(explicit)];if(!matches.length)continue;
-      let nameEnd=i-1;while(nameEnd>consumed&&metadata.test(lines[nameEnd]))nameEnd--;
-      const name=lines.slice(consumed+1,nameEnd+1).filter(x=>!metadata.test(x)).join('').trim();
+      const matches=[...joined.matchAll(explicit)];
+      if(!matches.length){i=endLine;continue;}
+      // Course name = the nearest lines above the header that are neither metadata nor a classroom.
+      const nameLines=[];let nameStart=i;
+      for(let j=i-1;j>=0&&nameLines.length<3;j--){
+        const line=lines[j];
+        if(metadata.test(line)){nameStart=j;continue;}
+        if(roomLike(line))break;
+        nameLines.unshift(line);nameStart=j;
+      }
+      blocks.push({startLine:i,endLine,matches,name:nameLines.join(''),nameStart});
+      i=endLine;
+    }
+    if(!blocks.length)return parseLegacyCell(lines,day,start,maxWeeks);
+    for(let b=0;b<blocks.length;b++){
+      const block=blocks[b];
+      // Everything between this header and the next course name is teacher + classrooms.
+      const nextNameStart=b+1<blocks.length?blocks[b+1].nameStart:lines.length;
+      const tail=lines.slice(block.endLine+1,nextNameStart).filter(x=>!metadata.test(x)&&!header.test(x));
+      let teacher='',roomLines=tail;
+      if(tail.length&&!roomLike(tail[0])){teacher=tail[0];roomLines=tail.slice(1);}
+      const rooms=splitRooms(roomLines,metadata);
+      const name=block.name||(b>0?blocks[b-1].name:'');
       if(!name)throw Error('未找到课程名称');
-      const teacher=clean(lines[endLine+1]||'');
-      // Join layout wrapping inside classroom names, but stop before the next course block.
-      let roomEnd=endLine+2;
-      while(roomEnd+1<lines.length&&!metadata.test(lines[roomEnd+1])&&
-          !/^(?:星期|礼拜|周)\s*[一二三四五六日天]/.test(lines[roomEnd+1])&&
-          !metadata.test(lines[roomEnd+2]||''))roomEnd++;
-      const room=clean(lines.slice(endLine+2,roomEnd+1).join(''));
-      for(const match of matches){
+      for(const match of block.matches){
         const explicitDay=dayNumber(match[1]);
         const weekSpec=match[3].replace(/周次|第|周/g,'').replace(/[()\[\]]/g,'').replace(/\s/g,'');
         const weeks=M.parseWeeks(weekSpec,maxWeeks),sections=new Set();
@@ -114,27 +179,16 @@
           for(let n=from;n<=to;n++)sections.add(n);
         }
         const sorted=[...sections].sort((a,b)=>a-b);let first=sorted[0],last=first;
-        const add=()=>results.push({name,teacher,room,day:explicitDay,start:first,end:last,weeks});
+        const add=()=>results.push({name,teacher,rooms:[...rooms],day:explicitDay,start:first,end:last,weeks:[...weeks]});
         for(const n of sorted.slice(1)){if(n===last+1)last=n;else{add();first=last=n;}}add();
       }
-      consumed=roomEnd;i=roomEnd;
-    }
-    if(results.length)return results;
-    // SYUCT uses “2节/单周(1-12)”; also accept spaced / reversed week ranges.
-    const pattern=/(\d{1,2})\s*节\s*\/\s*(单周|双周|全部周数|每周|周)\s*\(\s*([\d\s,，、\-~～—–至到]+)\s*\)/;
-    const reversed=/(\d{1,2})\s*节\s*\/\s*([\d\s,，、\-~～—–至到]+)\s*周\s*(?:\((单|双)(?:周)?\))?/;
-    for(let i=0;i<lines.length;i++){
-      const hit=lines[i].match(pattern),reverse=hit?null:lines[i].match(reversed);if(!hit&&!reverse)continue;
-      let previous=i-1;
-      while(previous>=0&&/^(必修|选修|专选|公选|学选|无方向|实践|考查|考试)$/.test(lines[previous]))previous--;
-      const name=clean(lines[previous]||'');if(!name)continue;
-      const count=Number((hit||reverse)[1]),type=hit?hit[2]:reverse[3]||'',range=hit?hit[3]:reverse[2];
-      const weeks=M.parseWeeks(range.replace(/[，、]/g,',')+(type.includes('单')?'单':type.includes('双')?'双':''),maxWeeks);
-      const end=start+count-1;
-      if(start<1||count<1||end>20)throw Error('课程节次超出范围');
-      results.push({name,teacher:clean(lines[i+1]||''),room:clean(lines[i+2]||''),day,start,end,weeks});
     }
     return results;
+  }
+  function roomText(rooms,fallback=''){
+    const list=(rooms||[]).map(x=>clean(x)).filter(Boolean);
+    if(!list.length)return clean(fallback);
+    return [...new Set(list)].join(' / ').slice(0,100);
   }
   function parsePortal(payload,totalWeeks=30){
     const tables=payload&&Array.isArray(payload.tables)?payload.tables:[];
@@ -168,5 +222,5 @@
     const unique=Array.from(new Map(best.map(r=>[JSON.stringify(r),r])).values());
     return {courses:group(unique),issues:[...new Set([...(payload.diagnostics?.issues||[]),...bestIssues])]};
   }
-  return {TEMPLATE,parseCsv,parseCsvCourses,parsePortal,parseCell,tableGrid,dayNumber};
+  return {TEMPLATE,parseCsv,parseCsvCourses,parsePortal,parseCell,parseLegacyCell,tableGrid,dayNumber,splitRooms,roomText,roomLike};
 });

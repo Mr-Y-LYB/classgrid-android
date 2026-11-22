@@ -319,6 +319,70 @@ public class MainActivity extends Activity {
                 }
             });
         }
+        /** 申请电池优化白名单：不清后台时也能收到闹钟（国产 ROM 还会额外有自启动开关）。 */
+        @JavascriptInterface public void requestIgnoreBatteryOptimizations() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT < 23) {
+                    callback("onReminderAction", "{\"message\":\"当前系统不需要电池优化设置\"}");
+                    return;
+                }
+                android.os.PowerManager power = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+                if (power != null && power.isIgnoringBatteryOptimizations(getPackageName())) {
+                    callback("onReminderAction", "{\"message\":\"已允许后台运行\"}");
+                    return;
+                }
+                Intent request = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + getPackageName()));
+                try { startActivity(request); }
+                catch (RuntimeException unavailable) {
+                    try { startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); }
+                    catch (RuntimeException ignored) {
+                        startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:" + getPackageName())));
+                    }
+                }
+            });
+        }
+        /** 打开系统「自启动 / 后台运行」管理页，尽量直达各家 ROM 的入口。 */
+        @JavascriptInterface public void openAutoStartSettings() {
+            runOnUiThread(() -> {
+                String[][] entries = {
+                    {"com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"},
+                    {"com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"},
+                    {"com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity"},
+                    {"com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"},
+                    {"com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"},
+                    {"com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity"},
+                    {"com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"},
+                    {"com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"},
+                    {"com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity"},
+                    {"com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"},
+                    {"com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"}
+                };
+                for (String[] entry : entries) {
+                    try {
+                        Intent intent = new Intent().setClassName(entry[0], entry[1]);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        if (getPackageManager().resolveActivity(intent, 0) == null) continue;
+                        startActivity(intent);
+                        callback("onReminderAction", "{\"message\":\"请在自启动列表里允许 ClassGrid\"}");
+                        return;
+                    } catch (RuntimeException ignored) { }
+                }
+                try {
+                    startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + getPackageName())));
+                    callback("onReminderAction", "{\"message\":\"请在「电池 / 后台管理」中允许 ClassGrid 后台运行\"}");
+                } catch (RuntimeException ignored) { }
+            });
+        }
+        /** 手动让守护服务重启一次（自检按钮用）。 */
+        @JavascriptInterface public void restartReminderWatchdog() {
+            worker.execute(() -> {
+                ReminderScheduler.schedule(MainActivity.this);
+                callback("onReminderStatus", ReminderScheduler.status(MainActivity.this).toString());
+            });
+        }
         @JavascriptInterface public void checkForUpdates(boolean manual) { updater.check(manual); }
         @JavascriptInterface public void downloadUpdate(String url, String digest, String version) {
             updater.download(url, digest, version);

@@ -16,7 +16,11 @@ public class ReminderReceiver extends BroadcastReceiver {
         if (ReminderScheduler.NEXT_ACTION.equals(intent.getAction())) {
             PendingResult pending = goAsync();
             new Thread(() -> {
-                try { ReminderScheduler.deliverDue(context.getApplicationContext()); }
+                try {
+                    ReminderScheduler.deliverDue(context.getApplicationContext());
+                    // 闹钟能送达说明进程被拉起，顺手确认守护服务还活着。
+                    if (!ReminderService.isRunning()) ReminderService.start(context.getApplicationContext());
+                }
                 finally { pending.finish(); }
             }, "classgrid-notification").start();
             return;
@@ -30,8 +34,10 @@ public class ReminderReceiver extends BroadcastReceiver {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null || !ReminderScheduler.notificationsAllowed(context)) return false;
         String channel = "classgrid_courses";
-        manager.createNotificationChannel(new NotificationChannel(channel, "上课提醒",
-            NotificationManager.IMPORTANCE_DEFAULT));
+        NotificationChannel config = new NotificationChannel(channel, "上课提醒",
+            NotificationManager.IMPORTANCE_HIGH);
+        config.setDescription("上课前按设置的提前量提醒");
+        manager.createNotificationChannel(config);
         Intent open = new Intent(context, MainActivity.class);
         PendingIntent pending = PendingIntent.getActivity(context, 0, open,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

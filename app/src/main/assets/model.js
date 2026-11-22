@@ -34,7 +34,7 @@
   function weekOf(table,date){return Math.floor((new Date(`${date}T12:00:00`)-new Date(`${table.startDate}T12:00:00`))/604800000)+1;}
   function dateFor(table,week,day){return dateAdd(table.startDate,(week-1)*7+day-1);}
   function defaultTable(){return {id:uid(),name:'我的课表',startDate:monday(todayDate()),totalWeeks:20,periods:DEFAULT_PERIODS.map(x=>({start:x[0],end:x[1]})),courses:[],exceptions:[],background:'',backgroundFade:35};}
-  function defaultState(){const table=defaultTable();return {schema:SCHEMA,activeId:table.id,tables:[table],settings:{remindersEnabled:false,reminderMinutes:15,theme:'light'}};}
+  function defaultState(){const table=defaultTable();return {schema:SCHEMA,activeId:table.id,tables:[table],settings:{remindersEnabled:false,reminderMinutes:15,reminderStatusBar:true,theme:'light'}};}
   function parseWeeks(input,maxWeeks=30){
     const result=new Set();let source=String(input||'').trim();
     if(!source)throw Error('请填写周次');
@@ -81,6 +81,14 @@
     const light=.2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];
     return (1.05/(light+.05))>=((light+.05)/.055)?'#fff':'#101010';
   }
+  // 一节课可能有多个教室：room 是展示用的合并文本，rooms 保留原始列表。
+  function roomList(room,rooms){
+    const list=Array.isArray(rooms)?rooms.map(x=>typeof x==='string'?x.trim():'').filter(Boolean).slice(0,8):[];
+    if(list.length)return list;
+    const text=typeof room==='string'?room.trim():'';
+    return text?text.split(/\s*\/\s*/).map(x=>x.trim()).filter(Boolean):[];
+  }
+  function roomText(room,rooms){return roomList(room,rooms).join(' / ');}
   function validateState(raw){
     if(!raw||raw.schema!==SCHEMA||!Array.isArray(raw.tables)||raw.tables.length>50)throw Error('备份版本或内容无效');
     for(const t of raw.tables){
@@ -93,19 +101,22 @@
           !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(t.background)))throw Error('课表背景无效');
       if(t.backgroundFade!==undefined&&(!Number.isInteger(t.backgroundFade)||t.backgroundFade<0||t.backgroundFade>85))throw Error('背景透明度无效');
       for(const p of t.periods)if(!/^\d\d:\d\d$/.test(p.start)||!/^\d\d:\d\d$/.test(p.end)||p.start>=p.end)throw Error('节次时间无效');
+      const badRooms=x=>x!==undefined&&(!Array.isArray(x)||x.length>8||
+        x.some(r=>typeof r!=='string'||!r.trim()||r.length>60));
       for(const c of t.courses){
         if(!c||!c.id||!c.name||!Array.isArray(c.sessions)||c.sessions.length>30||
            (c.color!==undefined&&!/^#[0-9a-f]{6}$/i.test(c.color))||
-           (c.room!==undefined&&(typeof c.room!=='string'||c.room.length>100)))throw Error('课程数据无效');
+           (c.room!==undefined&&(typeof c.room!=='string'||c.room.length>100))||badRooms(c.rooms))throw Error('课程数据无效');
         for(const s of c.sessions)if(!s.id||s.day<1||s.day>7||s.start<1||s.end<s.start||s.end>t.periods.length||
            !Array.isArray(s.weeks)||s.weeks.some(w=>!Number.isInteger(w)||w<1||w>t.totalWeeks)||
-           (s.room!==undefined&&(typeof s.room!=='string'||s.room.length>100)))throw Error('上课安排无效');
+           (s.room!==undefined&&(typeof s.room!=='string'||s.room.length>100))||badRooms(s.rooms))throw Error('上课安排无效');
       }
       for(const x of t.exceptions)if(!x||!x.id||!x.courseId||!['cancel','move','extra'].includes(x.type)||
         !/^\d{4}-\d\d-\d\d$/.test(x.sourceDate||x.targetDate||''))throw Error('临时调课数据无效');
     }
     if(!raw.tables.some(t=>t.id===raw.activeId))raw.activeId=raw.tables[0]?.id||null;
-    if(!raw.settings)raw.settings={remindersEnabled:false,reminderMinutes:15};
+    if(!raw.settings)raw.settings={remindersEnabled:false,reminderMinutes:15,reminderStatusBar:true};
+    if(raw.settings.reminderStatusBar===undefined)raw.settings.reminderStatusBar=true;
     if(!['auto','light','dark'].includes(raw.settings.theme))raw.settings.theme='light';
     return raw;
   }
@@ -127,8 +138,9 @@
       const date=dateFor(table,week,session.day);
       const change=changes.latest.get(`${session.id}@${date}`);
       if(change&&['cancel','move'].includes(change.type))continue;
+      const rooms=roomList(session.room??course.room, session.rooms||course.rooms);
       out.push({id:`${session.id}@${date}`,courseId:course.id,sessionId:session.id,date,day:session.day,start:session.start,end:session.end,
-        name:course.name,teacher:course.teacher||'',room:session.room??course.room??'',color:course.color||COLORS[0],moved:false});
+        name:course.name,teacher:course.teacher||'',room:rooms.join(' / '),rooms,color:course.color||COLORS[0],moved:false});
     }
     for(const change of changes.all){
       if(change.type!=='move'&&change.type!=='extra')continue;
@@ -136,8 +148,9 @@
       const course=table.courses.find(x=>x.id===change.courseId);if(!course)continue;
       const session=course.sessions.find(x=>x.id===change.sessionId);
       const day=(new Date(`${change.targetDate}T12:00:00`).getDay()+6)%7+1;
+      const rooms=roomList(change.room??session?.room??course.room, change.rooms||session?.rooms||course.rooms);
       out.push({id:change.id,courseId:course.id,sessionId:change.sessionId||'',date:change.targetDate,day,
-        start:change.start,end:change.end,name:course.name,teacher:course.teacher||'',room:change.room??session?.room??course.room??'',
+        start:change.start,end:change.end,name:course.name,teacher:course.teacher||'',room:rooms.join(' / '),rooms,
         color:course.color||COLORS[0],moved:true});
     }
     return out.sort((a,b)=>a.day-b.day||a.start-b.start||a.name.localeCompare(b.name,'zh'));
@@ -187,8 +200,9 @@
   function reminderPayload(state){
     const table=activeTable(state);
     const events=table?allOccurrences(table).map(e=>({id:e.id,at:eventTime(table,e)?.start||0,title:e.name,room:e.room})).filter(e=>e.at):[];
-    return {enabled:!!state.settings.remindersEnabled,minutes:Number(state.settings.reminderMinutes??15),events};
+    return {enabled:!!state.settings.remindersEnabled,minutes:Number(state.settings.reminderMinutes??15),
+      status:state.settings.reminderStatusBar!==false,events};
   }
   return {SCHEMA,COLORS,nextCourseColor,assignCourseColors,DEFAULT_PERIODS,uid,todayDate,monday,dateAdd,weekOf,dateFor,defaultTable,defaultState,parseWeeks,selectWeeks,weekPattern,weeksLabel,contrastText,
-    validateState,activeTable,occurrences,changeMarkers,conflicts,allOccurrences,eventTime,toIcs,reminderPayload};
+    roomList,roomText,validateState,activeTable,occurrences,changeMarkers,conflicts,allOccurrences,eventTime,toIcs,reminderPayload};
 });

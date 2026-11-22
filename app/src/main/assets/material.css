@@ -266,18 +266,30 @@
 /* --------------------------------------------------------- 6. Course cards */
 /* 底色与文字由 app.js 按课程色算出「容器色 / 容器上文字」，这里只管几何 */
 .course-card{
-  border-radius:var(--md-shape-s);padding:7px 6px 5px;gap:2px;
+  border-radius:var(--md-shape-s);padding:7px 6px 5px;gap:3px;
   box-shadow:none;border:0;font-weight:400;
+  display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;
   transition:transform var(--md-dur-short) var(--md-ease-standard);
 }
 .course-card:active{transform:scale(.985)}
+/* 名称在上、教室贴底：所有方块共用同一套内边距、行距与 3px 间距，
+   字号只在名称放不下时统一下调，排布结构不随内容变化。 */
 .course-card strong{
-  font-size:13px;line-height:1.22;font-weight:500;letter-spacing:.1px;
+  display:block;flex:none;overflow:hidden;
+  font-size:13px;line-height:16px;font-weight:500;letter-spacing:.1px;
   text-shadow:none!important;
 }
 .course-card .course-room,
 .course-card>span{
-  font-size:11px;line-height:1.28;letter-spacing:.2px;opacity:.92;text-shadow:none!important;
+  display:block;flex:none;overflow:hidden;
+  font-size:10px;line-height:13px;letter-spacing:.2px;opacity:.92;text-shadow:none!important;
+  word-break:normal;overflow-wrap:anywhere;white-space:normal;
+}
+.course-card.change-marker .course-room,
+.course-card.change-marker>span{margin-top:0}
+.course-card .room-more{
+  font-style:normal;font-size:9px;line-height:1;font-weight:500;
+  margin-left:1px;letter-spacing:0;opacity:.62;white-space:nowrap;
 }
 .course-card .week-badge{
   left:6px;right:6px;bottom:5px;padding:1px 0;border-radius:var(--md-shape-xs);
@@ -494,7 +506,37 @@
   font-size:12px;letter-spacing:.4px;
 }
 :root[data-theme] .note.warn{background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)}
-.permission-actions{margin-top:12px}
+.reminder-mode{margin:0 0 14px}
+.reminder-mode>.label{display:block;font-size:12px;line-height:16px;color:var(--md-sys-color-on-surface-variant);margin-bottom:8px}
+.reminder-mode .segmented{width:100%}
+.reminder-mode .segmented label{flex:1;justify-content:center;text-align:center;min-width:0;font-size:13px}
+.reminder-mode .reminder-hint{margin:8px 0 0;font-size:11px;line-height:16px}
+.permission-actions{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.permission-actions .button{flex:1 1 44%;min-width:0;font-size:12px;padding:0 8px}
+/* 提醒自检：逐项列出「通知权限 / 精确提醒 / 后台守护 / 后台运行」 */
+:root[data-theme] .reminder-check{
+  display:flex;flex-direction:column;gap:2px;margin:0 0 12px;
+  border-radius:var(--md-shape-m);overflow:hidden;
+  background:var(--md-sys-color-surface-container-low);
+}
+:root[data-theme] .reminder-check:empty{display:none}
+:root[data-theme] .check-row{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;
+  font-size:12px;line-height:16px;letter-spacing:.2px;
+  color:var(--md-sys-color-on-surface-variant);
+}
+:root[data-theme] .check-row i{
+  display:grid;place-items:center;flex:none;width:16px;height:16px;border-radius:50%;
+  font-style:normal;font-size:10px;font-weight:600;line-height:1;
+}
+:root[data-theme] .check-row.ok i{background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container)}
+:root[data-theme] .check-row.warn i{background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container)}
+:root[data-theme] .check-row.warn{color:var(--md-sys-color-error)}
+:root[data-theme] .check-row span{flex:1;min-width:0}
+:root[data-theme] .check-row b{font-weight:500;font-size:12px;color:var(--md-sys-color-on-surface);opacity:.8}
+:root[data-theme] .check-row.warn b{color:var(--md-sys-color-error);opacity:1}
+:root[data-theme] .check-row.note-row{justify-content:center;color:var(--md-sys-color-on-surface-variant)}
+:root[data-theme] .reminder-hint{margin:10px 0 0;font-size:11px;line-height:16px}
 
 /* 分段按钮：容器底色 + 选中胶囊，不用描边（描边叠圆角会出高光边） */
 :root[data-theme] .settings-tabs,

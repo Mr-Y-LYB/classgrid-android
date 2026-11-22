@@ -57,7 +57,7 @@
     else if(darkQuery.addListener)darkQuery.addListener(onSchemeChange);
   }
   let lastRenderedWeek=null;
-  let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:false,exact:false,scheduled:0,nextAt:0,error:''};
+  let state,week=1,eventsById=new Map(),markersById=new Map(),selectedEvent=null,selectedMarker=null,pendingImport=null,pendingUpdate=null,reminderStatus={notifications:false,exact:false,alarmClock:false,watchdog:false,battery:true,persistent:true,scheduled:0,nextAt:0,error:''};
   try{state=M.validateState(JSON.parse(native?native.loadState():localStorage.getItem('classgrid-state')||'null'));}
   catch(e){state=M.defaultState();}
   let table=M.activeTable(state);week=Math.max(1,Math.min(table.totalWeeks,M.weekOf(table,M.todayDate())));
@@ -205,8 +205,11 @@
       const badge=pattern==='odd'?'单周':pattern==='even'?'双周':'';
       button.setAttribute('aria-label',marker?`${entry.name}，${entry.type==='cancel'?'本次停课':`已调至${entry.targetDate}第${entry.targetStart}至${entry.targetEnd}节`}`:
         `${entry.name}${badge?'，'+badge:''}`);
+      // 同一节课可能有多个教室：卡片显示第一个，其余用「+N」标记，详情里全部列出。
+      const rooms=M.roomList(entry.room,entry.rooms);
+      const roomMarkup=rooms.length>1?`${esc(rooms[0])}<em class="room-more">+${rooms.length-1}</em>`:esc(rooms[0]||'');
       button.innerHTML=marker?`<strong>${esc(entry.name)}</strong><span>${entry.type==='cancel'?'本次停课':`已调至<br>${esc(dateLabel(entry.targetDate))} ${entry.targetStart}-${entry.targetEnd}节`}</span>`:
-        `<strong>${esc(entry.name)}</strong><span class="course-room">${esc(entry.room)}</span>${badge?`<em class="week-badge">${badge}</em>`:''}`;
+        `<strong>${esc(entry.name)}</strong><span class="course-room">${roomMarkup}</span>${badge?`<em class="week-badge">${badge}</em>`:''}`;
       grid.appendChild(button);
       fitCardText(button,marker);
     }
@@ -225,20 +228,64 @@
       line:hsvToHex({h,s:soft,v:dark?.34:.86})
     };
   }
+  // 课程方块文字排布：名称从顶部开始、教室贴底（与「单/双周」徽标互不重叠），
+  // 所有方块共用同一内边距与 3px 间距；字号只在名称放不下时整体下调。
+  // 优先级：名称 > 教室 > 单双周徽标 —— 实在挤不下时先去掉徽标，再压缩教室行数，最后截断名称。
   function fitCardText(card,marker){
-    const title=card.querySelector('strong'),secondary=card.querySelector('.course-room')||card.querySelector('span');
+    const title=card.querySelector('strong');
+    const secondary=card.querySelector('.course-room')||card.querySelector('span');
+    if(!title||!secondary)return;
     const style=getComputedStyle(card);
-    const available=card.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom)-(card.querySelector('.week-badge')?19:0);
-    const fits=()=>title.offsetHeight+secondary.offsetHeight+(secondary.textContent?2:0)<=available;
-    for(const size of [13,12,11,10,9]){
-      title.style.fontSize=size+'px';secondary.style.fontSize=Math.max(8,size-3)+'px';
-      if(fits())return;
+    let badge=card.querySelector('.week-badge');
+    const height=card.clientHeight;
+    const base=parseFloat(style.paddingTop)+parseFloat(style.paddingBottom);
+    let reserve=badge?20:(height>=120?20:0);
+    let available=Math.max(24,height-base-reserve);
+    const GAP=3;
+    let roomLine=13;
+    const size=(titleSize)=>{
+      const roomSize=Math.max(9,Math.min(10,titleSize-2));
+      title.style.fontSize=titleSize+'px';
+      title.style.lineHeight=Math.round(titleSize*1.25)+'px';
+      title.style.display='block';title.style.webkitBoxOrient='';title.style.webkitLineClamp='none';
+      title.style.maxHeight='';title.style.overflow='hidden';
+      secondary.style.fontSize=roomSize+'px';
+      secondary.style.lineHeight=Math.max(11,Math.round(roomSize*1.3))+'px';
+      secondary.hidden=false;secondary.style.maxHeight='';
+      secondary.style.marginTop=marker?'0':'auto';
+      secondary.style.marginBottom=reserve+'px';
+      roomLine=Math.max(11,Math.round(roomSize*1.3));
+    };
+    const roomHeight=()=>secondary.hidden?0:Math.min(secondary.scrollHeight,parseFloat(secondary.style.maxHeight)||Infinity);
+    const fits=()=>title.scrollHeight+GAP+roomHeight()<=available+0.5;
+    const trySizes=()=>{
+      for(const titleSize of [13,12,11,10,9]){size(titleSize);if(fits())return true;}
+      return false;
+    };
+    if(trySizes())return;
+    // 单节课的方块实在挤不下时，先去掉单双周徽标把空间让给课名与教室（多节大课保留徽标，
+    // 否则同一行方块的教室基线会高低不一）。
+    if(badge&&height<120){
+      badge.style.display='none';badge=null;reserve=0;
+      available=Math.max(24,height-base);
+      if(trySizes())return;
     }
-    if(!marker)secondary.hidden=true;
-    const titleSpace=Math.max(18,available-(secondary.hidden?0:secondary.offsetHeight+2));
-    if(title.offsetHeight>titleSpace){
-      title.style.maxHeight=titleSpace+'px';title.style.overflowY='auto';title.style.touchAction='pan-y';
+    // 仍然放不下：优先保证教室（最多 3 行），名称按剩余高度截断。
+    size(9);
+    const lineHeight=parseFloat(getComputedStyle(title).lineHeight)||12;
+    const clampTitle=(lines)=>{
+      title.style.display='-webkit-box';title.style.webkitBoxOrient='vertical';
+      title.style.webkitLineClamp=String(lines);
+    };
+    secondary.style.maxHeight=Math.min(secondary.scrollHeight,roomLine*3)+'px';
+    let lines=Math.floor((available-GAP-roomHeight())/lineHeight);
+    if(lines<2){
+      secondary.style.maxHeight=Math.min(secondary.scrollHeight,roomLine*2)+'px';
+      lines=Math.floor((available-GAP-roomHeight())/lineHeight);
     }
+    if(lines>=1){clampTitle(lines);return;}
+    secondary.hidden=true;
+    clampTitle(Math.max(1,Math.floor(available/lineHeight)));
   }
   function fingerprint(root){
     if(!root)return '';
@@ -397,7 +444,7 @@
     <div class="row">${field('周次',`<select class="s-week-mode" aria-label="周次类型">
       <option value="all" ${pattern.mode==='all'?'selected':''}>全部周数</option><option value="odd" ${pattern.mode==='odd'?'selected':''}>单周</option>
       <option value="even" ${pattern.mode==='even'?'selected':''}>双周</option><option value="custom" ${custom?'selected':''}>自选周次</option></select>`)}
-    ${field('教室',`<input class="s-room" maxlength="100" placeholder="例如 A101" value="${esc(s.room??fallbackRoom)}">`)}</div>
+    ${field('教室',`<input class="s-room" maxlength="100" placeholder="例如 A101，多个教室用 / 分隔" value="${esc(s.room??fallbackRoom)}">`)}</div>
     <div class="row s-week-range" ${custom?'hidden':''}>${field('从第几周',`<input class="s-week-start" type="number" min="1" max="${table.totalWeeks}" value="${pattern.start}">`)}
     ${field('到第几周',`<input class="s-week-end" type="number" min="1" max="${table.totalWeeks}" value="${pattern.end}">`)}</div>
     <div class="s-week-custom" ${custom?'':'hidden'}>${field('自选周次',`<input class="s-weeks" placeholder="例如 1,3,6-8" value="${esc(s.weeks?M.weeksLabel(s.weeks):`1-${table.totalWeeks}`)}">`)}</div></div>`;}
@@ -481,8 +528,9 @@
       const mode=box.querySelector('.s-week-mode').value;
       const weeks=mode==='custom'?M.parseWeeks(box.querySelector('.s-weeks').value,table.totalWeeks):
         M.selectWeeks(mode,box.querySelector('.s-week-start').value,box.querySelector('.s-week-end').value,table.totalWeeks);
-      return {id:box.dataset.id||M.uid(),day,start,end,weeks,
-        room:box.querySelector('.s-room').value.trim()};
+      const roomText=box.querySelector('.s-room').value.trim();
+      const rooms=roomText.split(/[、,，;；\/|｜＋+]/).map(x=>x.trim()).filter(Boolean).slice(0,8);
+      return {id:box.dataset.id||M.uid(),day,start,end,weeks,room:rooms.join(' / '),rooms};
     });
   }
   function saveCourse(){
@@ -517,9 +565,11 @@
       if(change&&session)selectedMarker={exceptionId:change.id,courseId:course.id,sessionId:session.id,date:change.sourceDate,
         start:session.start,end:session.end,room:session.room??course.room??'',type:'move'};
     }
+    const detailRooms=M.roomList(event.room,event.rooms);
     const info=`<div class="note" style="border-left:5px solid ${esc(event.color)}"><strong>${esc(course.name)}</strong><br>
       周${days[event.day-1]} · 第 ${event.start}-${event.end} 节 · ${esc(event.date)}<br>
-      ${esc(event.room||'未填写教室')} ${event.teacher?'· '+esc(event.teacher):''}</div>
+      ${detailRooms.length?detailRooms.map(esc).join('<br>'):'未填写教室'} ${event.teacher?'· '+esc(event.teacher):''}</div>
+      ${detailRooms.length>1?`<div class="muted">本节课有 ${detailRooms.length} 个教室，均已保留。</div>`:''}
       <div class="muted">${event.moved?'本次课程已调课':`常规周次：${esc(weeksText)}`}</div>`;
     modal('课程详情',info,`<button class="button" data-action="edit-selected">编辑整门课</button>
       ${event.moved?(selectedMarker?'<button class="button" data-action="move-occurrence">修改调课</button>':'')+'<button class="button" data-action="restore-occurrence">恢复本次</button>':
@@ -592,7 +642,7 @@
       let conflicts=0;for(let w=1;w<=weeks;w++)conflicts+=M.conflicts(M.occurrences(trial,w)).size;
       const arrangements=courses.reduce((n,c)=>n+c.sessions.length,0);
       $('#import-summary').textContent=`${pendingImport.source} · ${courses.length} 门课 · ${arrangements} 个时段${conflicts?` · ${conflicts} 次时间重叠`:''}`;
-      $('#import-course-preview').innerHTML=courses.map(c=>`<div class="preview-item" style="border-left-color:${esc(c.color)}"><strong>${esc(c.name)}</strong><span>${esc(c.teacher)}<br>${c.sessions.map(s=>`周${days[s.day-1]} ${s.start}-${s.end} 节 · ${M.weeksLabel(s.weeks)} 周 · ${esc(s.room??c.room??'未填写教室')}`).join('<br>')}</span></div>`).join('');
+      $('#import-course-preview').innerHTML=courses.map(c=>`<div class="preview-item" style="border-left-color:${esc(c.color)}"><strong>${esc(c.name)}</strong><span>${esc(c.teacher)}<br>${c.sessions.map(s=>`周${days[s.day-1]} ${s.start}-${s.end} 节 · ${M.weeksLabel(s.weeks)} 周 · ${esc(M.roomText(s.room??c.room, s.rooms)||'未填写教室')}`).join('<br>')}</span></div>`).join('');
       $('#import-error').textContent='';$('#import-summary').hidden=false;
     }catch(e){$('#import-error').textContent=e.message;$('#import-summary').hidden=true;$('#import-course-preview').innerHTML='';}
   }
@@ -617,10 +667,19 @@
       <section class="settings-panel" data-tab="reminder" hidden><h3 class="panel-heading">${panelIcon('alarm')}<span>课前提醒</span></h3>
       <div class="panel-card"><label class="reminder-switch"><span>开启提醒</span><input id="reminder-enabled" type="checkbox" ${state.settings.remindersEnabled?'checked':''}></label>
       ${field('提前分钟',`<input id="reminder-minutes" type="number" min="0" max="240" value="${state.settings.reminderMinutes??15}">`)}
+      <div class="reminder-mode"><span class="label">通知栏显示方式</span>
+      <div class="segmented" role="radiogroup" aria-label="通知栏显示方式">
+      <label><input type="radio" name="reminder-status" value="on" ${state.settings.reminderStatusBar!==false?'checked':''}>一直显示</label>
+      <label><input type="radio" name="reminder-status" value="off" ${state.settings.reminderStatusBar===false?'checked':''}>需要时提醒</label></div>
+      <p class="muted reminder-hint">「一直显示」会在通知栏常驻一行「上课提醒已开启 · 下次提醒」，清理后台也不会消失；「需要时提醒」不常驻、也没有前台的守护进程，只在课前那一刻发通知，仍由系统闹钟和兜底任务保证送达。</p></div>
+      <div class="reminder-check" id="reminder-check">${reminderCheckHtml()}</div>
       <div class="permission-status" id="permission-status">${esc(statusText())}</div>
       <div class="permission-actions"><button class="button small" data-action="notification-permission">通知权限</button>
-      <button class="button small" data-action="exact-permission">精确提醒</button></div>
-      <button class="button small reminder-test" data-action="test-reminder">测试提醒（1 分钟后）</button><p class="muted reminder-test-status" id="reminder-test-status" role="status"></p></div></section>
+      <button class="button small" data-action="exact-permission">精确提醒</button>
+      <button class="button small" data-action="battery-permission">允许后台运行</button>
+      <button class="button small" data-action="autostart">自启动</button></div>
+      <button class="button small reminder-test" data-action="test-reminder">测试提醒（1 分钟后）</button><p class="muted reminder-test-status" id="reminder-test-status" role="status"></p>
+      <p class="muted reminder-hint">通知栏的「上课提醒已开启」是常驻状态通知，清理后台后仍会保留并显示下次提醒；若手机支持「最近任务锁定」，把 ClassGrid 卡片下拉锁定可进一步避免被系统清理。</p></div></section>
       <section class="settings-panel" data-tab="data" hidden><h3 class="panel-heading">${panelIcon('data')}<span>数据</span></h3>
       <div class="settings-list"><button data-action="backup">${panelIcon('data')}<span>导出 JSON 备份</span><b>›</b></button>
       <button data-action="ics">${panelIcon('timetable')}<span>导出日历</span><b>›</b></button></div>
@@ -649,16 +708,33 @@
     if(!description){$('#feedback-error').textContent='请先填写问题描述';return null;}
     return `## 问题\n${description}\n\n## 环境\nClassGrid v${appVersion}${androidVersion?`\nAndroid ${androidVersion}`:''}`;
   }
+  // 提醒自检：把「为什么没提醒」拆成可核对的几项，任何一项不满足都能直接看到。
+  function reminderCheckHtml(){
+    const r=reminderStatus||{};
+    const persist=r.persistent!==false;
+    const rows=[
+      {label:'通知权限',ok:!!r.notifications,yes:'已开启',no:'未开启'},
+      {label:'精确提醒',ok:!!r.exact,yes:'已允许',no:'需要授权'},
+      {label:'后台守护',ok:persist?!!r.watchdog:true,yes:persist?'运行中':'按需模式（不常驻）',no:'已被系统结束'},
+      {label:'后台运行',ok:!!r.battery,yes:'已允许',no:'可能被系统限制'},
+      {label:'通知栏常驻',ok:true,yes:persist?'一直显示':'需要时提醒',no:''}
+    ];
+    if(!state.settings.remindersEnabled)return '<div class="check-row note-row"><span>提醒已关闭，开启后会在此显示自检结果</span></div>';
+    const tick=r.watchdog&&r.watchdogAt?`<div class="check-row note-row"><span>守护最近一次检查 ${new Date(r.watchdogAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}，每分钟一次</span></div>`:'';
+    return rows.map(x=>`<div class="check-row ${x.ok?'ok':'warn'}"><i>${x.ok?'✓':'!'}</i><span>${x.label}</span><b>${x.ok?x.yes:x.no}</b></div>`).join('')+tick;
+  }
   function statusText(){
     const last=reminderStatus.lastAt?`\n最近发送 ${new Date(reminderStatus.lastAt).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} · ${reminderStatus.lastTitle||'课程提醒'}`:'';
     if(!state.settings.remindersEnabled)return '提醒已关闭';
     if(!reminderStatus.notifications)return '通知权限未开启，课程提醒无法显示';
-    if(!reminderStatus.exact)return '精确提醒未开启，系统可能延迟通知；请点击下方“精确提醒”授权';
-    if(reminderStatus.error)return reminderStatus.error;
-    if(reminderStatus.scheduled>0&&reminderStatus.nextAt){
-      const when=new Date(reminderStatus.nextAt);
-      return `已设置 ${reminderStatus.scheduled} 条提醒\n下次 ${when.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}${reminderStatus.nextTitle?' · '+reminderStatus.nextTitle:''}${last}`;
+    if(reminderStatus.persistent===false){
+      if(!reminderStatus.error&&reminderStatus.scheduled>0&&reminderStatus.nextAt)return `按需提醒：已设置 ${reminderStatus.scheduled} 条\n下次 ${new Date(reminderStatus.nextAt).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}${reminderStatus.nextTitle?' · '+reminderStatus.nextTitle:''}${last}`;
+      if(reminderStatus.error)return reminderStatus.error;
+      return '按需提醒：未来 21 天暂无待发送的课程提醒'+last;
     }
+    if(!reminderStatus.watchdog)return '后台守护已被系统结束：系统闹钟仍会按时提醒；点「允许后台运行」「自启动」可让它常驻';
+    if(!reminderStatus.error&&reminderStatus.scheduled>0&&reminderStatus.nextAt)return `已设置 ${reminderStatus.scheduled} 条提醒\n下次 ${new Date(reminderStatus.nextAt).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}${reminderStatus.nextTitle?' · '+reminderStatus.nextTitle:''}${last}`;
+    if(reminderStatus.error)return reminderStatus.error;
     return '未来 21 天暂无待发送的课程提醒'+last;
   }
   function periodRow(p,index){return `<div class="period-row"><span class="period-number">${index+1}</span>
@@ -809,11 +885,13 @@
       if(!name||!/^\d{4}-\d\d-\d\d$/.test(date)||M.monday(date)!==date||weeks<1||weeks>30||mins<0||mins>240){$('#settings-error').textContent='请检查名称、第一周周一、总周数和提醒时间';return;}
       if(table.courses.some(c=>c.sessions.some(s=>s.weeks.some(w=>w>weeks)))){$('#settings-error').textContent='现有课程超出新的总周数';return;}
       const turningOn=!state.settings.remindersEnabled&&$('#reminder-enabled').checked;
+      const statusBar=$('input[name="reminder-status"]:checked')?.value!=='off';
       table.name=name;table.startDate=date;table.totalWeeks=weeks;state.settings.remindersEnabled=$('#reminder-enabled').checked;
-      state.settings.reminderMinutes=mins;appearanceBackup=null;week=Math.min(week,weeks);save();close();render();
+      state.settings.reminderMinutes=mins;state.settings.reminderStatusBar=statusBar;appearanceBackup=null;week=Math.min(week,weeks);save();close();render();
       if(turningOn&&native){
         if(!reminderStatus.notifications)native.requestReminderPermission();
         else if(!reminderStatus.exact)native.openExactAlarmSettings();
+        toast('已开启提醒：建议再点「允许后台运行」和「自启动」，否则部分手机清理后台后会停发通知');
       }
       toast('设置已保存');return;
     }
@@ -852,6 +930,8 @@
     if(action==='notification-permission'){if(native)native.requestReminderPermission();return;}
     if(action==='exact-permission'){if(native)native.openExactAlarmSettings();return;}
     if(action==='test-reminder'){if(native?.testReminder)native.testReminder();else toast('请在安卓应用中测试提醒');return;}
+    if(action==='battery-permission'){if(native?.requestIgnoreBatteryOptimizations)native.requestIgnoreBatteryOptimizations();else toast('请在安卓应用中设置');return;}
+    if(action==='autostart'){if(native?.openAutoStartSettings)native.openAutoStartSettings();else toast('请在安卓应用中设置');return;}
     if(action==='backup'){exportFile('ClassGrid-backup.json','application/json',JSON.stringify(state));return;}
     if(action==='ics'){exportFile('ClassGrid-'+table.name+'.ics','text/calendar',M.toIcs(table));return;}
     if(action==='check-update'){if(native)native.checkForUpdates(true);else toast('请在安卓应用中检查更新');return;}
@@ -978,6 +1058,7 @@
   window.onReminderStatus=data=>{
     reminderStatus=data||reminderStatus;
     const el=$('#permission-status');if(el)el.textContent=statusText();
+    const check=$('#reminder-check');if(check)check.innerHTML=reminderCheckHtml();
   };
   window.onReminderTest=data=>{
     const message=data?.ok?(data.exact?'测试提醒已设置，约 1 分钟后查看通知':'测试提醒已设置，系统可能延迟显示'):data?.error||'测试提醒设置失败';

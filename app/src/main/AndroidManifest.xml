@@ -4,7 +4,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <application android:allowBackup="false" android:usesCleartextTraffic="false"
         android:icon="@drawable/ic_launcher" android:label="ClassGrid"
@@ -16,6 +21,14 @@
             </intent-filter>
         </activity>
         <activity android:name=".PortalActivity" android:exported="false" />
+        <!-- 课前提醒守护：前台服务负责准点投递，定时任务负责极端情况下的兜底。 -->
+        <service android:name=".ReminderService" android:exported="false" android:stopWithTask="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="保持课前提醒在后台按时送达" />
+        </service>
+        <service android:name=".ReminderJobService" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver android:name=".ReminderReceiver" android:exported="false" />
         <receiver android:name=".RefreshReceiver" android:exported="true">
             <intent-filter>
@@ -25,6 +38,7 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
                 <action android:name="com.mrylyb.classgrid.REFRESH_REMINDERS" />
+                <action android:name="com.mrylyb.classgrid.REVIVE_REMINDERS" />
             </intent-filter>
         </receiver>
         <provider android:name="androidx.core.content.FileProvider"
@@ -34,4 +48,3 @@
         </provider>
     </application>
 </manifest>
-
